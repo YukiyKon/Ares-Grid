@@ -196,7 +196,9 @@ export const Step3HygieneModule: React.FC<Step3HygieneModuleProps> = ({
             className="pixel-btn w-full bg-indigo-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-indigo-300 disabled:cursor-not-allowed disabled:opacity-45"
           >
             {allDone
-              ? 'Ir para Cabine de Descanso (Desafio 2.4) ▶'
+              ? state.gameMode === 'SURVIVAL_30'
+                ? '🧼 Concluir Esterilização & Encerrar Turno (-1 Turno) ▶'
+                : 'Ir para Cabine de Descanso (Desafio 2.4) ▶'
               : `Realize as 3 etapas de higiene (${doneCount}/3)`}
           </button>
         </div>

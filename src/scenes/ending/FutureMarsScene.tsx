@@ -84,7 +84,7 @@ function downloadExpeditionCertificate(astronautName: string, sol: number, logsC
 }
 
 export const FutureMarsScene: React.FC = () => {
-  const { state, setScene, resetGame } = useGameStore();
+  const { state, setScene, startSurvivalMode, resetGame } = useGameStore();
 
   const capiLines = [
     'Olhe ao nosso redor, comandante! Quando chegamos, encontramos uma paisagem desconhecida e cheia de desafios.',
@@ -114,6 +114,21 @@ export const FutureMarsScene: React.FC = () => {
         <p className="mt-1 font-dialog text-sm text-cyan-200">
           A ciência abre caminhos para novos mundos! Sua próxima descoberta está esperando por você.
         </p>
+        <div className="mt-3 inline-flex flex-wrap items-center justify-center gap-2 rounded-sm border border-emerald-400/70 bg-emerald-950/50 px-3 py-1.5">
+          <span className="font-pixel text-[8px] text-emerald-300">
+            🔓 MODO 2 DESBLOQUEADO: EXPEDIÇÃO REAL 30 SOLS!
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playSuccess();
+              startSurvivalMode();
+            }}
+            className="pixel-btn bg-emerald-400 px-3 py-1 font-pixel text-[8px] text-slate-950 hover:bg-emerald-300"
+          >
+            🚀 Iniciar Expedição 30 Sols
+          </button>
+        </div>
       </div>
 
       {/* Mapa Regional Completo de Arcadia Planitia com todos os 5 setores ativos */}
@@ -203,6 +218,17 @@ export const FutureMarsScene: React.FC = () => {
           </div>
 
           <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playSuccess();
+                startSurvivalMode();
+              }}
+              className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-3 font-pixel text-[9px] text-slate-950 shadow-[0_0_20px_rgba(52,211,153,0.4)] hover:bg-emerald-300"
+            >
+              🚀 Iniciar Expedição 30 Sols (Modo Sobrevivência)
+            </button>
+
             <button
               type="button"
               onClick={handleDownloadCertificate}

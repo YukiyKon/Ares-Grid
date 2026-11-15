@@ -3,6 +3,7 @@ import { ArrowLeft, Sprout } from 'lucide-react';
 import { CapiAssistant } from '../../components/permanent/CapiAssistant';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { SurvivalStationBanner } from '../../modes/survival30/SurvivalStationBanner';
 import { Step1BuildGreenhouse } from './Step1BuildGreenhouse';
 import { Step2CultivationMethods } from './Step2CultivationMethods';
 import { Step3CropSelection } from './Step3CropSelection';
@@ -10,7 +11,8 @@ import { Step4GrowthMonitor } from './Step4GrowthMonitor';
 import { Step5BioregenerativeSystem } from './Step5BioregenerativeSystem';
 
 export const Mission4GreenhouseScene: React.FC = () => {
-  const { state, setScene, updateMission4 } = useGameStore();
+  const { state, setScene, updateMission4, executeSurvivalStationAction } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const phase =
     state.mission4.phase === 'COMPLETED' ? 'STEP_5_BIOREG' : state.mission4.phase;
   const [dynamicCapiLine, setDynamicCapiLine] = useState<string | null>(null);
@@ -95,6 +97,7 @@ export const Mission4GreenhouseScene: React.FC = () => {
                   state.mission4.selectedCrops.ornamental
               );
               const unlocked =
+                (isSurvival && stepId === 'STEP_4_GROWTH') ||
                 stepId === 'STEP_1_BUILD' ||
                 (stepId === 'STEP_2_METHODS' && subsReady) ||
                 (stepId === 'STEP_3_CROPS' &&
@@ -145,6 +148,8 @@ export const Mission4GreenhouseScene: React.FC = () => {
         </div>
       </div>
 
+      <SurvivalStationBanner station="MISSION_4" />
+
       {/* Etapa ativa da Missão 4 */}
       <div className="rounded-sm border-2 border-slate-800 bg-slate-950/95 p-4">
         {phase === 'STEP_1_BUILD' && (
@@ -170,7 +175,11 @@ export const Mission4GreenhouseScene: React.FC = () => {
 
         {phase === 'STEP_4_GROWTH' && (
           <Step4GrowthMonitor
-            onComplete={() => handleMovePhase('STEP_5_BIOREG')}
+            onComplete={() =>
+              isSurvival
+                ? executeSurvivalStationAction('MISSION_4')
+                : handleMovePhase('STEP_5_BIOREG')
+            }
             onCapiFeedback={(line) => setDynamicCapiLine(line)}
           />
         )}

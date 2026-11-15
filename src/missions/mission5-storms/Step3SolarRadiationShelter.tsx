@@ -63,7 +63,7 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
   useEffect(() => {
     if (hasInitRef.current) return;
     hasInitRef.current = true;
-    if (!state.mission5.mission5Completed) {
+    if (state.gameMode === 'SURVIVAL_30' || !state.mission5.mission5Completed) {
       setAstroPos({ lane: 1, col: 0 });
       setRadiationPct(18);
       reachedRef.current = false;
@@ -414,7 +414,9 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
             className="pixel-btn w-full bg-emerald-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-45"
           >
             {reachedShelter
-              ? 'Risco Dissipado — Inspeção Pós-Tempestade (Desafio 5.4) ▶'
+              ? state.gameMode === 'SURVIVAL_30'
+                ? '🛡️ Ativar Proteção da Base (-1 Turno • -10% Stamina) ▶'
+                : 'Risco Dissipado — Inspeção Pós-Tempestade (Desafio 5.4) ▶'
               : 'Guie o astronauta até a porta do Abrigo Blindado ▶'}
           </button>
         </div>

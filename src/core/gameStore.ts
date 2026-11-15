@@ -4,6 +4,22 @@ import type {
   MarsSolarHourId,
   PanelAzimuthId,
 } from '../missions/mission1-solar/mars24SolarMath';
+import {
+  applySurvivalStationCompletion,
+  createEmptyDailyLog,
+  createInitialSurvival30State,
+  createSurvivalCrisis,
+  type CrisisType,
+  type GameMode,
+  resolveNightlySolTransition,
+  resolveSurvivalCrisisTimeout,
+  stepSurvivalCrisisProgress,
+  type Survival30State,
+  type SurvivalActionDetails,
+  type SurvivalDailyLog,
+  type SurvivalStationId,
+} from '../modes/survival30/survivalTypes';
+import { getSolWeather } from '../modes/survival30/weatherScheduler';
 
 export type GameSceneId =
   | 'START_SCREEN'
@@ -245,6 +261,9 @@ export type ActiveModalType = 'NONE' | 'LOGBOOK' | 'SLEEP_REPORT' | 'ARCADIA_MAP
 
 export interface GameState {
   currentScene: GameSceneId;
+  gameMode: GameMode;
+  survival30Unlocked: boolean;
+  survival: Survival30State;
   astronaut: AstronautProfile;
   stats: GameStats;
   mission1: Mission1State;
@@ -395,8 +414,13 @@ const DEFAULT_MISSION_5: Mission5State = {
   earthTransmissionCompleted: false,
 };
 
+const DEFAULT_SURVIVAL: Survival30State = createInitialSurvival30State();
+
 const DEFAULT_STATE: GameState = {
   currentScene: 'START_SCREEN',
+  gameMode: 'TRAINING',
+  survival30Unlocked: false,
+  survival: DEFAULT_SURVIVAL,
   astronaut: {
     name: 'Comandante Alex',
     suitColor: 'orange',
@@ -420,10 +444,10 @@ const DEFAULT_STATE: GameState = {
   healthSimulation: {
     sleepHours: 8.2,
     sleepQuality: 'Boa',
-    exercisesDone: ['Treinamento pré-voo concluído', 'Alongamento de adaptação (simulado)'],
-    nutritionStatus: 'Ração espacial balanceada (simulada)',
-    hydrationLevel: 'Adequada (85% reservatório)',
-    hygieneChecked: true,
+    exercisesDone: ['Nenhum exercício registrado hoje'],
+    nutritionStatus: 'Aguardando preparo de refeição no Habitat',
+    hydrationLevel: 'Reservatório em 85% (aguardando dosagem)',
+    hygieneChecked: false,
     simulatedHeartRateBpm: 76,
     adaptationNote: 'Adaptação inicial à gravidade marciana (~0,38g) monitorada.',
   },
@@ -516,6 +540,26 @@ function loadInitialState(): GameState {
         ...DEFAULT_STATE.healthSimulation,
         ...(parsed.healthSimulation ?? {}),
       },
+      survival: {
+        ...DEFAULT_SURVIVAL,
+        ...(parsed.survival ?? {}),
+        dominoAlerts: Array.isArray(parsed.survival?.dominoAlerts)
+          ? parsed.survival.dominoAlerts
+          : DEFAULT_SURVIVAL.dominoAlerts,
+        activeCrisis: null,
+        stats: {
+          ...DEFAULT_SURVIVAL.stats,
+          ...(parsed.survival?.stats ?? {}),
+        },
+        dailyLog: {
+          ...createEmptyDailyLog(),
+          ...(parsed.survival?.dailyLog ?? {}),
+          stationOperations: Array.isArray(parsed.survival?.dailyLog?.stationOperations)
+            ? parsed.survival.dailyLog.stationOperations
+            : [],
+        },
+      },
+      gameMode: parsed.gameMode === 'SURVIVAL_30' ? 'SURVIVAL_30' : 'TRAINING',
       logbook: Array.isArray(parsed.logbook) ? parsed.logbook : [],
       activeModal: 'NONE',
     };
@@ -575,6 +619,19 @@ function buildSyncedHealthSimulation(
 interface GameContextValue {
   state: GameState;
   setScene: (scene: GameSceneId) => void;
+  startSurvivalMode: () => void;
+  toggleGameMode: () => void;
+  setSurvivalPowerSave: (enabled: boolean) => void;
+  executeSurvivalStationAction: (
+    station: SurvivalStationId,
+    details?: SurvivalActionDetails
+  ) => void;
+  recordSurvivalDailyLog: (patch: Partial<SurvivalDailyLog>) => void;
+  triggerSurvivalCrisis: (preferredType?: CrisisType) => void;
+  tickSurvivalCrisis: () => void;
+  interactSurvivalCrisis: () => void;
+  resolveCrisisViaStation: () => void;
+  restartSurvival30: () => void;
   updateAstronaut: (patch: Partial<AstronautProfile>) => void;
   updateStats: (patch: Partial<GameStats>) => void;
   updateMission1: (patch: Partial<Mission1State>) => void;
@@ -611,8 +668,357 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [state]);
 
+  const buildSurvivalPreparedPatch = (
+    prev: GameState,
+    targetScene?: GameSceneId,
+    solOverride?: number
+  ): Partial<GameState> => {
+    const activeSol = solOverride ?? prev.survival.sol;
+    const weather = getSolWeather(activeSol);
+    const patch: Partial<GameState> = {};
+
+    if (!targetScene || targetScene === 'MISSION_1') {
+      patch.mission1 = {
+        ...prev.mission1,
+        phase: 'STEP_3_TEST',
+        selectedSite: 'C',
+        season: 'EQUINOX',
+        solarHour: 'NOON',
+        panelAzimuth: 'SOUTH',
+        panelTiltDeg: 22,
+        generatedWatts: 480,
+        dustCleaned: false,
+        powerSaveTested: prev.survival.powerSaveActive,
+        mission1Completed: false,
+      };
+    }
+
+    if (!targetScene || targetScene === 'MISSION_2') {
+      patch.mission2 = {
+        ...prev.mission2,
+        phase: 'STEP_1_GYM',
+        exercisesCompleted: [],
+        fitnessScore: 0,
+        selectedProtein: null,
+        selectedVeggie: null,
+        selectedCarb: null,
+        waterDose: null,
+        nutritionCompleted: false,
+        hygieneTasks: {
+          teeth: false,
+          hands: false,
+          gear: false,
+        },
+        hygieneCompleted: false,
+        mission2Completed: false,
+      };
+    }
+
+    if (!targetScene || targetScene === 'MISSION_3') {
+      patch.mission3 = {
+        ...prev.mission3,
+        phase: 'STEP_2_DRILL',
+        layersInspected: { surface: true, radar: true, priorStudies: true },
+        selectedSector: 'GAMMA',
+        drillDepthStep: 0,
+        sampleExtracted: false,
+        sampleLabeled: false,
+        sampleStored: false,
+        processSteps: {
+          separateSoil: false,
+          meltIce: false,
+          filterParticles: false,
+          treatWater: false,
+        },
+        potabilityChecks: {
+          ph: false,
+          conductivity: false,
+          chemicals: false,
+          metals: false,
+          microbiology: false,
+        },
+        waterApproved: false,
+        mission3Completed: false,
+      };
+    }
+
+    if (!targetScene || targetScene === 'MISSION_4') {
+      const greenhouseBroken =
+        prev.survival.greenhouseInRisk || prev.survival.energy < 30;
+      patch.mission4 = {
+        ...prev.mission4,
+        phase: 'STEP_4_GROWTH',
+        subsystems: {
+          structure: true,
+          lighting: true,
+          climate: true,
+          irrigation: true,
+          connectedSolar: true,
+          connectedWater: true,
+        },
+        selectedMethod: 'HYDRO_AERO',
+        selectedCrops: {
+          vegetable: prev.mission4.selectedCrops.vegetable ?? 'Alface Crespa',
+          fruit: prev.mission4.selectedCrops.fruit ?? 'Morangos',
+          grain: prev.mission4.selectedCrops.grain ?? 'Trigo Anão',
+          ornamental: prev.mission4.selectedCrops.ornamental ?? 'Flores Coloridas',
+        },
+        envSettings: greenhouseBroken
+          ? {
+              light: 'LOW',
+              waterNutrient: 'LOW',
+              tempHumidity: 'COLD',
+            }
+          : {
+              light: 'IDEAL',
+              waterNutrient: 'IDEAL',
+              tempHumidity: 'IDEAL',
+            },
+        growthStage: 0,
+        mission4Completed: false,
+      };
+    }
+
+    if (!targetScene || targetScene === 'MISSION_5') {
+      patch.mission5 = {
+        ...prev.mission5,
+        phase: weather.type === 'SOLAR_RADIATION_FLARE' ? 'STEP_3_RADIATION' : 'STEP_1_DUST',
+        dustProtocol: {
+          checkPanel: false,
+          stopExternalAndReturn: false,
+          sealCompartmentsAndFilters: false,
+          protectGearAndBattery: false,
+        },
+        radiationProtocol: {
+          alertConsulted: true,
+          externalStopped: true,
+          enteredShieldedShelter: false,
+          shieldingVerified: false,
+          riskReducedAndReleased: false,
+        },
+        mission5Completed: false,
+      };
+    }
+
+    return patch;
+  };
+
   const setScene = (scene: GameSceneId) => {
-    setState((prev) => ({ ...prev, currentScene: scene }));
+    setState((prev) => {
+      const stationPatch =
+        prev.gameMode === 'SURVIVAL_30' &&
+        (scene === 'MISSION_1' ||
+          scene === 'MISSION_2' ||
+          scene === 'MISSION_3' ||
+          scene === 'MISSION_4' ||
+          scene === 'MISSION_5')
+          ? buildSurvivalPreparedPatch(prev, scene)
+          : {};
+
+      return {
+        ...prev,
+        ...stationPatch,
+        currentScene: scene,
+        survival30Unlocked:
+          prev.survival30Unlocked ||
+          scene === 'FUTURE_MARS' ||
+          prev.mission5.mission5Completed,
+      };
+    });
+  };
+
+  const startSurvivalMode = () => {
+    setState((prev) => {
+      const freshSurvival =
+        prev.survival.gameStatus !== 'PLAYING'
+          ? createInitialSurvival30State()
+          : prev.survival;
+      const prepared = buildSurvivalPreparedPatch(prev, undefined, freshSurvival.sol);
+      return {
+        ...prev,
+        ...prepared,
+        gameMode: 'SURVIVAL_30',
+        survival30Unlocked: true,
+        survival: freshSurvival,
+        currentScene: 'BASE_HUB',
+        activeModal: 'NONE',
+      };
+    });
+  };
+
+  const toggleGameMode = () => {
+    setState((prev) => {
+      const nextMode: GameMode =
+        prev.gameMode === 'SURVIVAL_30' ? 'TRAINING' : 'SURVIVAL_30';
+      if (nextMode === 'SURVIVAL_30') {
+        const prepared = buildSurvivalPreparedPatch(prev);
+        return {
+          ...prev,
+          ...prepared,
+          gameMode: 'SURVIVAL_30',
+          survival30Unlocked: true,
+          currentScene: 'BASE_HUB',
+          activeModal: 'NONE',
+        };
+      }
+      return {
+        ...prev,
+        gameMode: 'TRAINING',
+        currentScene: 'BASE_HUB',
+        activeModal: 'NONE',
+      };
+    });
+  };
+
+  const setSurvivalPowerSave = (enabled: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      survival: {
+        ...prev.survival,
+        powerSaveActive: enabled,
+      },
+    }));
+  };
+
+  const recordSurvivalDailyLog = (patch: Partial<SurvivalDailyLog>) => {
+    setState((prev) => {
+      if (prev.gameMode !== 'SURVIVAL_30') return prev;
+      return {
+        ...prev,
+        survival: {
+          ...prev.survival,
+          dailyLog: {
+            ...createEmptyDailyLog(),
+            ...prev.survival.dailyLog,
+            ...patch,
+          },
+        },
+      };
+    });
+  };
+
+  const executeSurvivalStationAction = (
+    station: SurvivalStationId,
+    details?: SurvivalActionDetails
+  ) => {
+    setState((prev) => {
+      let nextSurvival = applySurvivalStationCompletion(prev.survival, station, details);
+      const shouldOpenSleep =
+        nextSurvival.turnsLeft === 0 && nextSurvival.gameStatus === 'PLAYING';
+
+      if (
+        !shouldOpenSleep &&
+        nextSurvival.gameStatus === 'PLAYING' &&
+        nextSurvival.turnsLeft > 0 &&
+        !nextSurvival.activeCrisis
+      ) {
+        const weather = getSolWeather(nextSurvival.sol);
+        const crisisChance = weather.isCritical || weather.isModerateAlert ? 0.72 : 0.45;
+        if (Math.random() < crisisChance) {
+          nextSurvival = {
+            ...nextSurvival,
+            activeCrisis: createSurvivalCrisis(nextSurvival.sol),
+          };
+        }
+      }
+
+      return {
+        ...prev,
+        survival: nextSurvival,
+        currentScene: 'BASE_HUB',
+        activeModal: shouldOpenSleep ? 'SLEEP_REPORT' : 'NONE',
+      };
+    });
+  };
+
+  const triggerSurvivalCrisis = (preferredType?: CrisisType) => {
+    setState((prev) => {
+      if (
+        prev.gameMode !== 'SURVIVAL_30' ||
+        prev.survival.gameStatus !== 'PLAYING' ||
+        prev.survival.activeCrisis
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        survival: {
+          ...prev.survival,
+          activeCrisis: createSurvivalCrisis(prev.survival.sol, preferredType),
+        },
+      };
+    });
+  };
+
+  const tickSurvivalCrisis = () => {
+    setState((prev) => {
+      const crisis = prev.survival.activeCrisis;
+      if (
+        prev.gameMode !== 'SURVIVAL_30' ||
+        prev.survival.gameStatus !== 'PLAYING' ||
+        !crisis
+      ) {
+        return prev;
+      }
+      if (crisis.secondsLeft <= 1) {
+        return {
+          ...prev,
+          survival: resolveSurvivalCrisisTimeout(prev.survival),
+        };
+      }
+      return {
+        ...prev,
+        survival: {
+          ...prev.survival,
+          activeCrisis: {
+            ...crisis,
+            secondsLeft: crisis.secondsLeft - 1,
+          },
+        },
+      };
+    });
+  };
+
+  const interactSurvivalCrisis = () => {
+    setState((prev) => {
+      if (prev.gameMode !== 'SURVIVAL_30' || !prev.survival.activeCrisis) {
+        return prev;
+      }
+      return {
+        ...prev,
+        survival: stepSurvivalCrisisProgress(prev.survival),
+      };
+    });
+  };
+
+  const resolveCrisisViaStation = () => {
+    setState((prev) => {
+      const crisis = prev.survival.activeCrisis;
+      if (prev.gameMode !== 'SURVIVAL_30' || !crisis) return prev;
+      const targetScene: GameSceneId = crisis.stationShortcut;
+      const prepared = buildSurvivalPreparedPatch(prev, targetScene);
+      return {
+        ...prev,
+        ...prepared,
+        currentScene: targetScene,
+        activeModal: 'NONE',
+      };
+    });
+  };
+
+  const restartSurvival30 = () => {
+    setState((prev) => {
+      const fresh = createInitialSurvival30State();
+      const prepared = buildSurvivalPreparedPatch(prev, undefined, fresh.sol);
+      return {
+        ...prev,
+        ...prepared,
+        gameMode: 'SURVIVAL_30',
+        survival: fresh,
+        currentScene: 'BASE_HUB',
+        activeModal: 'NONE',
+      };
+    });
   };
 
   const updateAstronaut = (patch: Partial<AstronautProfile>) => {
@@ -637,10 +1043,47 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateMission2 = (patch: Partial<Mission2State>) => {
-    setState((prev) => ({
-      ...prev,
-      mission2: { ...prev.mission2, ...patch },
-    }));
+    setState((prev) => {
+      const nextMission2 = { ...prev.mission2, ...patch };
+      if (prev.gameMode !== 'SURVIVAL_30') {
+        return {
+          ...prev,
+          mission2: nextMission2,
+        };
+      }
+
+      const prevLog = {
+        ...createEmptyDailyLog(),
+        ...prev.survival.dailyLog,
+      };
+      let nextTrainedToday = prev.survival.trainedToday;
+      const nextDailyLog: SurvivalDailyLog = { ...prevLog };
+
+      if (nextMission2.exercisesCompleted.length > 0) {
+        nextTrainedToday = true;
+        nextDailyLog.exercised = true;
+        nextDailyLog.exerciseCount = nextMission2.exercisesCompleted.length;
+        nextDailyLog.exerciseSummary =
+          nextMission2.exercisesCompleted.length >= 4
+            ? 'Treino gravitacional concluído (4/4 exercícios)'
+            : `Treino gravitacional realizado (${nextMission2.exercisesCompleted.length}/4 exercícios)`;
+      }
+
+      if (nextMission2.hygieneCompleted) {
+        nextDailyLog.hygieneCompleted = true;
+        nextDailyLog.hygieneSummary = 'Ambiente, mãos e luvas esterilizados';
+      }
+
+      return {
+        ...prev,
+        mission2: nextMission2,
+        survival: {
+          ...prev.survival,
+          trainedToday: nextTrainedToday,
+          dailyLog: nextDailyLog,
+        },
+      };
+    });
   };
 
   const updateMission3 = (patch: Partial<Mission3State>) => {
@@ -658,15 +1101,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateMission5 = (patch: Partial<Mission5State>) => {
-    setState((prev) => ({
-      ...prev,
-      mission5: { ...prev.mission5, ...patch },
-    }));
+    setState((prev) => {
+      const nextM5 = { ...prev.mission5, ...patch };
+      return {
+        ...prev,
+        survival30Unlocked:
+          prev.survival30Unlocked ||
+          nextM5.mission5Completed ||
+          nextM5.endingUnlocked,
+        mission5: nextM5,
+      };
+    });
   };
 
   const transmitAllLogsToEarth = () => {
     setState((prev) => ({
       ...prev,
+      survival30Unlocked: true,
       mission5: {
         ...prev.mission5,
         earthTransmissionCompleted: true,
@@ -813,6 +1264,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const completeSleepCycle = (earthConnected: boolean) => {
     setState((prev) => {
+      if (prev.gameMode === 'SURVIVAL_30') {
+        const nextSurvival = resolveNightlySolTransition(prev.survival);
+        const prepared =
+          nextSurvival.gameStatus === 'PLAYING'
+            ? buildSurvivalPreparedPatch(prev, undefined, nextSurvival.sol)
+            : {};
+
+        return {
+          ...prev,
+          ...prepared,
+          survival: nextSurvival,
+          currentScene: 'BASE_HUB',
+          lastEarthSyncStatus: earthConnected
+            ? `Telemetria do Sol ${prev.survival.sol}/30 enviada à Terra.`
+            : `Telemetria do Sol ${prev.survival.sol}/30 salva no servidor de bordo.`,
+        };
+      }
+
       const canFinishMission1 =
         prev.stats.solarInstalled &&
         prev.mission1.dustCleaned &&
@@ -854,10 +1323,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? `Sol ${nextSol}: Saúde e sono monitorados (NASA Spaceflight Standard Measures)! Missão 3 desbloqueada.`
         : canFinishMission1
         ? `Sol ${nextSol}: Missão 1 concluída! Missão 2 desbloqueada para o novo dia.`
-        : `Sol ${nextSol}: recuperação simulada concluída com sucesso.`;
+        : `Sol ${nextSol}: recuperação de ciclo concluída com sucesso.`;
 
       return {
         ...prev,
+        survival30Unlocked: prev.survival30Unlocked || canFinishMission5,
         stats: {
           ...prev.stats,
           sol: nextSol,
@@ -939,6 +1409,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value: {
         state,
         setScene,
+        startSurvivalMode,
+        toggleGameMode,
+        setSurvivalPowerSave,
+        executeSurvivalStationAction,
+        recordSurvivalDailyLog,
+        triggerSurvivalCrisis,
+        tickSurvivalCrisis,
+        interactSurvivalCrisis,
+        resolveCrisisViaStation,
+        restartSurvival30,
         updateAstronaut,
         updateStats,
         updateMission1,

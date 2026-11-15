@@ -3,6 +3,7 @@ import { ArrowLeft, Satellite, ShieldAlert } from 'lucide-react';
 import { CapiAssistant } from '../../components/permanent/CapiAssistant';
 import { type Mission5Phase, useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { SurvivalStationBanner } from '../../modes/survival30/SurvivalStationBanner';
 import { Step1DustStormProtocol } from './Step1DustStormProtocol';
 import { Step2SolarMaintenance } from './Step2SolarMaintenance';
 import { Step3SolarRadiationShelter } from './Step3SolarRadiationShelter';
@@ -11,7 +12,8 @@ import { Step4PostStormInspection } from './Step4PostStormInspection';
 type ActiveMission5Phase = Exclude<Mission5Phase, 'COMPLETED'>;
 
 export const Mission5StormsScene: React.FC = () => {
-  const { state, setScene, updateMission5 } = useGameStore();
+  const { state, setScene, updateMission5, executeSurvivalStationAction } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const phase: ActiveMission5Phase =
     state.mission5.phase === 'COMPLETED' ? 'STEP_4_INSPECTION' : state.mission5.phase;
   const [dynamicCapiLine, setDynamicCapiLine] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export const Mission5StormsScene: React.FC = () => {
               ] as const
             ).map(([stepId, label]) => {
               const unlocked =
+                (isSurvival && (stepId === 'STEP_1_DUST' || stepId === 'STEP_3_RADIATION')) ||
                 stepId === 'STEP_1_DUST' ||
                 (stepId === 'STEP_2_SOLAR_CLEAN' && dustDone) ||
                 (stepId === 'STEP_3_RADIATION' && solarDone) ||
@@ -134,11 +137,17 @@ export const Mission5StormsScene: React.FC = () => {
         </div>
       </div>
 
+      <SurvivalStationBanner station="MISSION_5" />
+
       {/* Etapa ativa da Missão 5 */}
       <div className="rounded-sm border-2 border-slate-800 bg-slate-950/95 p-4">
         {phase === 'STEP_1_DUST' && (
           <Step1DustStormProtocol
-            onComplete={() => handleMovePhase('STEP_2_SOLAR_CLEAN')}
+            onComplete={() =>
+              isSurvival
+                ? executeSurvivalStationAction('MISSION_5')
+                : handleMovePhase('STEP_2_SOLAR_CLEAN')
+            }
             onCapiFeedback={(line) => setDynamicCapiLine(line)}
           />
         )}
@@ -152,7 +161,11 @@ export const Mission5StormsScene: React.FC = () => {
 
         {phase === 'STEP_3_RADIATION' && (
           <Step3SolarRadiationShelter
-            onComplete={() => handleMovePhase('STEP_4_INSPECTION')}
+            onComplete={() =>
+              isSurvival
+                ? executeSurvivalStationAction('MISSION_5')
+                : handleMovePhase('STEP_4_INSPECTION')
+            }
             onCapiFeedback={(line) => setDynamicCapiLine(line)}
           />
         )}

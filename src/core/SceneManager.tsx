@@ -22,6 +22,15 @@ import { Mission2HealthScene } from '../missions/mission2-health/Mission2HealthS
 import { Mission3IceScene } from '../missions/mission3-ice/Mission3IceScene';
 import { Mission4GreenhouseScene } from '../missions/mission4-greenhouse/Mission4GreenhouseScene';
 import { Mission5StormsScene } from '../missions/mission5-storms/Mission5StormsScene';
+import { SurvivalResultOverlay } from '../modes/survival30/SurvivalResultOverlay';
+import {
+  SURVIVAL_STATION_RULES,
+  type SurvivalStationId,
+} from '../modes/survival30/survivalTypes';
+import {
+  getNextSolEarlyWarning,
+  getSolWeather,
+} from '../modes/survival30/weatherScheduler';
 import { EarthCommsScene } from '../scenes/ending/EarthCommsScene';
 import { FutureMarsScene } from '../scenes/ending/FutureMarsScene';
 import { CapiIntroScene } from '../scenes/intro/CapiIntroScene';
@@ -42,6 +51,13 @@ const BaseHubScene: React.FC = () => {
   const mission3 = MISSION_REGISTRY[2];
   const mission4 = MISSION_REGISTRY[3];
   const mission5 = MISSION_REGISTRY[4];
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
+  const survivalWeather = getSolWeather(state.survival.sol);
+  const earlyWarning = isSurvival ? getNextSolEarlyWarning(state.survival.sol) : null;
+  const earlyWarningText = earlyWarning
+    ? `⚠️ Aviso Orbital para amanhã (Sol ${earlyWarning.sol}): ${earlyWarning.title} — ${earlyWarning.capiAdvice}`
+    : null;
+
   const { solarInstalled } = state.stats;
   const { mission1Completed, mission2Unlocked } = state.mission1;
   const { mission2Completed, mission3Unlocked } = state.mission2;
@@ -49,7 +65,19 @@ const BaseHubScene: React.FC = () => {
   const { mission4Completed, mission5Unlocked } = state.mission4;
   const { mission5Completed, endingUnlocked } = state.mission5;
 
-  const defaultCapiLines = endingUnlocked
+  const survivalCapiLines = [
+    ...(state.survival.dominoAlerts.length > 0
+      ? [`⚠️ EFEITO DOMINÓ ATIVO: ${state.survival.dominoAlerts[0]}`]
+      : []),
+    ...(state.survival.lastActionNotice ? [state.survival.lastActionNotice] : []),
+    `Sol ${state.survival.sol}/30 • ${survivalWeather.shortBadge}: ${survivalWeather.capiAdvice}`,
+    earlyWarningText ??
+      `Turnos restantes: ${state.survival.turnsLeft}/4 | Stamina: ${state.survival.stamina}/${state.survival.maxStamina}% | Poeira nos painéis: ${state.survival.panelDustPct}%.`,
+  ];
+
+  const defaultCapiLines = isSurvival
+    ? survivalCapiLines
+    : endingUnlocked
     ? [
         'Missão 5 concluída com segurança! Todas as 5 missões científicas em Arcadia Planitia foram finalizadas!',
         'Clique em "Central de Comunicação (Cena 6)" para enviar o Relatório Geral da Expedição aos cientistas da Terra!',
@@ -102,30 +130,48 @@ const BaseHubScene: React.FC = () => {
     }
   };
 
-  const handleOpenMission1 = () => {
+  const tryOpenSurvivalStation = (stationId: SurvivalStationId) => {
+    if (isSurvival) {
+      const rule = SURVIVAL_STATION_RULES[stationId];
+      if (state.survival.turnsLeft <= 0) {
+        soundEngine.playAlert();
+        setHubFeedbackLine(
+          'Todos os 4 Turnos deste Sol acabaram! Clique em "🌙 Dormir" para processar o balanço noturno e avançar para o próximo Sol.'
+        );
+        return;
+      }
+      if (state.survival.stamina < rule.minStamina) {
+        soundEngine.playAlert();
+        setHubFeedbackLine(
+          `Stamina insuficiente (${state.survival.stamina}% < ${rule.minStamina}%) para operar ${rule.shortName}. Visite o Habitat (Estação 2) ou clique em "🌙 Dormir" para descansar!`
+        );
+        return;
+      }
+      if (rule.minWater && state.survival.water < rule.minWater) {
+        soundEngine.playAlert();
+        setHubFeedbackLine(
+          `Água insuficiente (${state.survival.water}% < ${rule.minWater}%) para ${rule.shortName}. Extraia gelo na Estação 3 (Setor Norte) primeiro!`
+        );
+        return;
+      }
+      if (rule.minEnergy && state.survival.energy < rule.minEnergy) {
+        soundEngine.playAlert();
+        setHubFeedbackLine(
+          `Energia insuficiente (${state.survival.energy}% < ${rule.minEnergy}%) para ${rule.shortName}. Limpe os painéis na Estação 1 (Painéis Solares) primeiro!`
+        );
+        return;
+      }
+    }
+    setHubFeedbackLine(null);
     soundEngine.playClick();
-    setScene('MISSION_1');
+    setScene(stationId);
   };
 
-  const handleOpenMission2 = () => {
-    soundEngine.playClick();
-    setScene('MISSION_2');
-  };
-
-  const handleOpenMission3 = () => {
-    soundEngine.playClick();
-    setScene('MISSION_3');
-  };
-
-  const handleOpenMission4 = () => {
-    soundEngine.playClick();
-    setScene('MISSION_4');
-  };
-
-  const handleOpenMission5 = () => {
-    soundEngine.playClick();
-    setScene('MISSION_5');
-  };
+  const handleOpenMission1 = () => tryOpenSurvivalStation('MISSION_1');
+  const handleOpenMission2 = () => tryOpenSurvivalStation('MISSION_2');
+  const handleOpenMission3 = () => tryOpenSurvivalStation('MISSION_3');
+  const handleOpenMission4 = () => tryOpenSurvivalStation('MISSION_4');
+  const handleOpenMission5 = () => tryOpenSurvivalStation('MISSION_5');
 
   const handleOpenEarthComms = () => {
     soundEngine.playClick();
@@ -159,7 +205,7 @@ const BaseHubScene: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              if (mission2Unlocked) {
+              if (isSurvival || mission2Unlocked) {
                 setHubFeedbackLine(null);
                 handleOpenMission2();
               } else {
@@ -167,26 +213,28 @@ const BaseHubScene: React.FC = () => {
                 setHubFeedbackLine(getLockedMissionHint('MISSION_2'));
               }
             }}
-            aria-disabled={!mission2Unlocked}
+            aria-disabled={!isSurvival && !mission2Unlocked}
             className={`absolute left-[10%] top-[34%] rounded-sm border-2 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition hover:scale-105 ${
-              mission2Unlocked
+              isSurvival || mission2Unlocked
                 ? 'cursor-pointer border-cyan-300'
                 : 'cursor-pointer border-slate-500/80 opacity-90'
             }`}
           >
             <span
               className={`block font-pixel text-[8px] ${
-                mission2Unlocked ? 'text-cyan-300' : 'text-slate-300'
+                isSurvival || mission2Unlocked ? 'text-cyan-300' : 'text-slate-300'
               }`}
             >
               HABITAT
             </span>
             <span className="font-dialog text-[11px] text-slate-200">
-              {mission2Completed
-                ? 'Saúde OK ✓'
-                : mission2Unlocked
-                  ? 'Missão 2: Saúde ▶'
-                  : 'Requer Painel Solar'}
+              {isSurvival
+                ? 'Saúde & Treino (-1 Turno) ▶'
+                : mission2Completed
+                  ? 'Saúde OK ✓'
+                  : mission2Unlocked
+                    ? 'Missão 2: Saúde ▶'
+                    : 'Requer Painel Solar'}
             </span>
           </button>
 
@@ -222,9 +270,13 @@ const BaseHubScene: React.FC = () => {
             onClick={handleOpenMission1}
             className="group absolute bottom-[11%] right-[6%] flex flex-col items-center transition hover:scale-105"
           >
-            {solarInstalled ? (
+            {isSurvival || solarInstalled ? (
               <img
-                src={ASSET_MANIFEST.solarPanelClean.path}
+                src={
+                  isSurvival && state.survival.panelDustPct >= 40
+                    ? ASSET_MANIFEST.solarPanelDirty.path
+                    : ASSET_MANIFEST.solarPanelClean.path
+                }
                 alt={ASSET_MANIFEST.solarPanelClean.alt}
                 className="pixel-art h-24 w-24 drop-shadow-[0_6px_12px_rgba(0,0,0,0.6)]"
               />
@@ -233,18 +285,28 @@ const BaseHubScene: React.FC = () => {
             )}
             <span
               className={`rounded-sm border-2 px-2.5 py-1 text-center shadow-lg ${
-                solarInstalled
-                  ? 'border-emerald-300 bg-slate-950/95 text-emerald-300'
-                  : 'border-amber-300 bg-slate-950/95 text-amber-300'
+                isSurvival
+                  ? state.survival.panelDustPct >= 40
+                    ? 'border-orange-300 bg-slate-950/95 text-orange-300'
+                    : 'border-emerald-300 bg-slate-950/95 text-emerald-300'
+                  : solarInstalled
+                    ? 'border-emerald-300 bg-slate-950/95 text-emerald-300'
+                    : 'border-amber-300 bg-slate-950/95 text-amber-300'
               }`}
             >
               <span className="block font-pixel text-[8px]">
-                {solarInstalled
-                  ? `PAINÉIS ATIVOS (${state.mission1.generatedWatts || 480} W)`
-                  : 'ÁREA SOLAR (MISSÃO 1)'}
+                {isSurvival
+                  ? `PAINÉIS (${state.survival.panelDustPct}% POEIRA)`
+                  : solarInstalled
+                    ? `PAINÉIS ATIVOS (${state.mission1.generatedWatts || 480} W)`
+                    : 'ÁREA SOLAR (MISSÃO 1)'}
               </span>
               <span className="font-dialog text-[11px] text-slate-200">
-                {solarInstalled ? 'Clique para gerenciar' : 'Clique para instalar ▶'}
+                {isSurvival
+                  ? 'Limpar poeira (-1 Turno) ▶'
+                  : solarInstalled
+                    ? 'Clique para gerenciar'
+                    : 'Clique para instalar ▶'}
               </span>
             </span>
           </button>
@@ -254,7 +316,50 @@ const BaseHubScene: React.FC = () => {
       {/* Briefing Dinâmico da Missão Atual + Cartuchos da Expedição */}
       <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
         <div className="rounded-sm border-2 border-amber-400/70 bg-slate-950 p-4">
-          {mission5Unlocked ? (
+          {isSurvival ? (
+            <>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-amber-300">
+                  <SunMedium className="h-5 w-5 text-amber-300" />
+                  <h1 className="font-pixel text-xs">
+                    EXPEDIÇÃO REAL: 30 SOLS (SOL {state.survival.sol}/30)
+                  </h1>
+                </div>
+                <span className="rounded-sm border border-amber-400/70 bg-amber-950/60 px-2 py-0.5 font-dialog text-[11px] font-bold text-amber-200">
+                  {survivalWeather.shortBadge} — {survivalWeather.title}
+                </span>
+              </div>
+
+              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
+                Operação livre pelos 5 setores de Arcadia Planitia. Cada Sol tem{' '}
+                <strong className="text-amber-300">4 Turnos de Ação</strong>. Gerencie Stamina,
+                Poeira Solar ({state.survival.panelDustPct}%), Água, Comida e Proteção contra Tempestades antes de dormir!
+              </p>
+
+              {state.survival.dominoAlerts.length > 0 && (
+                <div className="mt-2.5 space-y-1 rounded-sm border-2 border-rose-500/75 bg-rose-950/50 px-3 py-2 font-dialog text-xs text-rose-100">
+                  <span className="block font-pixel text-[8px] text-rose-300">
+                    ⚠️ EFEITO DOMINÓ EM CASCATA ({state.survival.dominoAlerts.length})
+                  </span>
+                  {state.survival.dominoAlerts.map((alert) => (
+                    <p key={alert}>• {alert}</p>
+                  ))}
+                </div>
+              )}
+
+              {earlyWarningText && (
+                <div className="mt-2.5 rounded-sm border border-orange-400/70 bg-orange-950/50 px-3 py-2 font-dialog text-xs text-orange-100">
+                  {earlyWarningText}
+                </div>
+              )}
+
+              {state.survival.turnsLeft <= 0 && (
+                <div className="mt-2.5 rounded-sm border border-indigo-400 bg-indigo-950/60 px-3 py-2 font-dialog text-xs font-bold text-indigo-100">
+                  Turnos do Sol {state.survival.sol} esgotados (0/4). Clique em &quot;Dormir&quot; para avançar para o Sol {Math.min(30, state.survival.sol + 1)}/30!
+                </div>
+              )}
+            </>
+          ) : mission5Unlocked ? (
             <>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-orange-300">
@@ -412,7 +517,52 @@ const BaseHubScene: React.FC = () => {
           )}
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {endingUnlocked && (
+            {isSurvival && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenMission1}
+                  className="pixel-btn inline-flex items-center gap-1.5 bg-amber-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-amber-300"
+                >
+                  <SunMedium className="h-3.5 w-3.5" />
+                  1. Solar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenMission2}
+                  className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-cyan-300"
+                >
+                  <HeartPulse className="h-3.5 w-3.5" />
+                  2. Saúde
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenMission3}
+                  className="pixel-btn inline-flex items-center gap-1.5 bg-sky-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-sky-300"
+                >
+                  <Snowflake className="h-3.5 w-3.5" />
+                  3. Gelo/Água
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenMission4}
+                  className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-emerald-300"
+                >
+                  <Sprout className="h-3.5 w-3.5" />
+                  4. Estufa
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenMission5}
+                  className="pixel-btn inline-flex items-center gap-1.5 bg-orange-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-orange-300"
+                >
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  5. Abrigo
+                </button>
+              </>
+            )}
+
+            {!isSurvival && endingUnlocked && (
               <>
                 <button
                   type="button"
@@ -433,7 +583,7 @@ const BaseHubScene: React.FC = () => {
               </>
             )}
 
-            {mission5Unlocked && (
+            {!isSurvival && mission5Unlocked && (
               <button
                 type="button"
                 onClick={handleOpenMission5}
@@ -446,7 +596,7 @@ const BaseHubScene: React.FC = () => {
               </button>
             )}
 
-            {mission4Unlocked && (
+            {!isSurvival && mission4Unlocked && (
               <button
                 type="button"
                 onClick={handleOpenMission4}
@@ -459,7 +609,7 @@ const BaseHubScene: React.FC = () => {
               </button>
             )}
 
-            {mission3Unlocked && (
+            {!isSurvival && mission3Unlocked && (
               <button
                 type="button"
                 onClick={handleOpenMission3}
@@ -472,7 +622,7 @@ const BaseHubScene: React.FC = () => {
               </button>
             )}
 
-            {mission2Unlocked && (
+            {!isSurvival && mission2Unlocked && (
               <button
                 type="button"
                 onClick={handleOpenMission2}
@@ -485,16 +635,18 @@ const BaseHubScene: React.FC = () => {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={handleOpenMission1}
-              className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300"
-            >
-              <SunMedium className="h-4 w-4" />
-              {solarInstalled
-                ? 'Painel da Missão 1 ▶'
-                : 'Iniciar Missão 1: Energia Solar ▶'}
-            </button>
+            {!isSurvival && (
+              <button
+                type="button"
+                onClick={handleOpenMission1}
+                className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300"
+              >
+                <SunMedium className="h-4 w-4" />
+                {solarInstalled
+                  ? 'Painel da Missão 1 ▶'
+                  : 'Iniciar Missão 1: Energia Solar ▶'}
+              </button>
+            )}
 
             <button
               type="button"
@@ -554,13 +706,17 @@ const BaseHubScene: React.FC = () => {
               const isM3Unlocked = mission.id === 'MISSION_3' && mission3Unlocked;
               const isM4Unlocked = mission.id === 'MISSION_4' && mission4Unlocked;
               const isM5Unlocked = mission.id === 'MISSION_5' && mission5Unlocked;
-              const isDone = isM1Done || isM2Done || isM3Done || isM4Done || isM5Done;
+              const isDone = !isSurvival && (isM1Done || isM2Done || isM3Done || isM4Done || isM5Done);
               const isClickable =
+                isSurvival ||
                 mission.id === 'MISSION_1' ||
                 isM2Unlocked ||
                 isM3Unlocked ||
                 isM4Unlocked ||
                 isM5Unlocked;
+              const survivalRule = isSurvival
+                ? SURVIVAL_STATION_RULES[mission.id as SurvivalStationId]
+                : null;
 
               return (
                 <li key={mission.id}>
@@ -575,15 +731,15 @@ const BaseHubScene: React.FC = () => {
                       }
                       setHubFeedbackLine(null);
                       if (mission.id === 'MISSION_1') handleOpenMission1();
-                      if (mission.id === 'MISSION_2' && isM2Unlocked) handleOpenMission2();
-                      if (mission.id === 'MISSION_3' && isM3Unlocked) handleOpenMission3();
-                      if (mission.id === 'MISSION_4' && isM4Unlocked) handleOpenMission4();
-                      if (mission.id === 'MISSION_5' && isM5Unlocked) handleOpenMission5();
+                      if (mission.id === 'MISSION_2') handleOpenMission2();
+                      if (mission.id === 'MISSION_3') handleOpenMission3();
+                      if (mission.id === 'MISSION_4') handleOpenMission4();
+                      if (mission.id === 'MISSION_5') handleOpenMission5();
                     }}
                     className={`flex w-full cursor-pointer items-start justify-between gap-2 rounded-sm border p-2 text-left transition ${
                       isDone
                         ? 'border-emerald-400/70 bg-emerald-950/30 hover:bg-emerald-950/50'
-                        : isM5Unlocked || isM4Unlocked || isM3Unlocked || isM2Unlocked || mission.id === 'MISSION_1'
+                        : isClickable
                         ? 'border-amber-400/70 bg-amber-950/30 hover:bg-amber-950/50'
                         : 'border-slate-800 bg-slate-900/60 opacity-80 hover:border-slate-600'
                     }`}
@@ -593,7 +749,9 @@ const BaseHubScene: React.FC = () => {
                         {mission.title}
                       </p>
                       <p className="font-dialog text-[10px] text-slate-400">
-                        {isM5Unlocked && !isM5Done
+                        {survivalRule
+                          ? `${survivalRule.costLabel} • ${survivalRule.rewardLabel}`
+                          : isM5Unlocked && !isM5Done
                           ? 'DESBLOQUEADA! Clique para iniciar ▶'
                           : isM4Unlocked && !isM4Done
                           ? 'DESBLOQUEADA! Clique para iniciar ▶'
@@ -606,13 +764,13 @@ const BaseHubScene: React.FC = () => {
                     </div>
                     {isDone ? (
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                    ) : isM5Unlocked ? (
+                    ) : isM5Unlocked || (isSurvival && mission.id === 'MISSION_5') ? (
                       <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" />
-                    ) : isM4Unlocked ? (
+                    ) : isM4Unlocked || (isSurvival && mission.id === 'MISSION_4') ? (
                       <Sprout className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-                    ) : isM3Unlocked ? (
+                    ) : isM3Unlocked || (isSurvival && mission.id === 'MISSION_3') ? (
                       <Snowflake className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                    ) : isM2Unlocked ? (
+                    ) : isM2Unlocked || (isSurvival && mission.id === 'MISSION_2') ? (
                       <HeartPulse className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
                     ) : mission.id === 'MISSION_1' ? (
                       <SunMedium className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
@@ -628,6 +786,7 @@ const BaseHubScene: React.FC = () => {
       </div>
 
       <CapiAssistant lines={capiLines} />
+      <SurvivalResultOverlay />
     </section>
   );
 };

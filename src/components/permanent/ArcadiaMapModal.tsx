@@ -99,9 +99,14 @@ export const ArcadiaRegionalMapCanvas: React.FC<ArcadiaRegionalMapCanvasProps> =
     },
   ];
 
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
+
   const getSectorStatus = (id: RegionalSector['id']) => {
     if (allActive) {
       return { unlocked: true, completed: true, label: 'ATIVO ✓' };
+    }
+    if (isSurvival) {
+      return { unlocked: true, completed: false, label: 'LIVRE (MODO 30 SOLS) ▶' };
     }
     switch (id) {
       case 'CENTER': {
@@ -298,7 +303,7 @@ export const ArcadiaRegionalMapCanvas: React.FC<ArcadiaRegionalMapCanvasProps> =
               </button>
               <button
                 type="button"
-                disabled={!allActive && !state.mission1.mission2Unlocked}
+                disabled={!allActive && !isSurvival && !state.mission1.mission2Unlocked}
                 onClick={() => handleGoToScene('MISSION_2')}
                 className="pixel-btn inline-flex items-center gap-1 bg-cyan-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-cyan-300 disabled:opacity-45"
               >

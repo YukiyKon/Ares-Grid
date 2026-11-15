@@ -11,6 +11,7 @@ import {
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { type WaterDoseId, useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import type { SurvivalActionDetails } from '../../modes/survival30/survivalTypes';
 
 type FoodGroup = 'PROTEIN' | 'VEGGIE' | 'CARB';
 
@@ -68,14 +69,18 @@ interface DraggingFoodState {
 
 interface Step2NutritionGalleyProps {
   onComplete: () => void;
+  onFinishSurvivalTurn?: (details?: SurvivalActionDetails) => void;
   onCapiFeedback: (line: string) => void;
 }
 
 export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
   onComplete,
+  onFinishSurvivalTurn,
   onCapiFeedback,
 }) => {
-  const { state, updateMission2, updateStats } = useGameStore();
+  const { state, updateMission2, updateStats, recordSurvivalDailyLog } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
+  const noRationsLeft = isSurvival && state.survival.foodRations <= 0;
   const { selectedProtein, selectedVeggie, selectedCarb, waterDose } = state.mission2;
 
   const [waterMl, setWaterMl] = useState<number>(() => {
@@ -377,15 +382,73 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
   const idealZoneLeftPct = Math.round((IDEAL_MIN_ML / MAX_CANTEEN_ML) * 100);
   const idealZoneWidthPct = Math.round(((IDEAL_MAX_ML - IDEAL_MIN_ML) / MAX_CANTEEN_ML) * 100);
 
+  const buildNutritionDetails = (): SurvivalActionDetails => {
+    const exercised =
+      state.mission2.exercisesCompleted.length > 0 || state.survival.dailyLog.exercised;
+    const resolvedWater = Math.max(0, Math.round(waterMl));
+    if (noRationsLeft) {
+      return {
+        exercised,
+        exerciseCount: state.mission2.exercisesCompleted.length,
+        ateMeal: false,
+        mealKcal: 0,
+        mealSummary: 'Sem ração no estoque — déficit energético',
+        hydrationMl: resolvedWater,
+      };
+    }
+
+    const items = [selectedProtein, selectedVeggie, selectedCarb].filter(Boolean).join(', ');
+    return {
+      exercised,
+      exerciseCount: state.mission2.exercisesCompleted.length,
+      ateMeal: hasBalancedPlate,
+      mealKcal: totalKcal,
+      mealSummary: hasBalancedPlate
+        ? `Refeição balanceada: ${totalKcal} kcal (${items})`
+        : `Ração parcial (${totalKcal} kcal)`,
+      hydrationMl: resolvedWater,
+    };
+  };
+
+  const syncSurvivalNutritionBeforeAdvance = () => {
+    const details = buildNutritionDetails();
+    const postUseWater = Math.max(0, state.survival.water - 12);
+    recordSurvivalDailyLog({
+      exercised: Boolean(details.exercised),
+      exerciseCount: details.exerciseCount ?? 0,
+      ateMeal: Boolean(details.ateMeal),
+      mealKcal: details.mealKcal ?? 0,
+      mealSummary: details.mealSummary,
+      hydratedToday: (details.hydrationMl ?? 0) > 0,
+      hydrationMl: details.hydrationMl ?? 0,
+      hydrationSummary:
+        (details.hydrationMl ?? 0) > 0
+          ? `${details.hydrationMl} ml ingeridos • Reservatório em ${postUseWater}%`
+          : `Hidratação insuficiente • Reservatório em ${state.survival.water}%`,
+    });
+    return details;
+  };
+
   const handleConfirmMeal = () => {
     soundEngine.playSuccess();
     updateMission2({ nutritionCompleted: true });
-    updateStats({
-      water: Math.min(95, state.stats.water + 8),
-      energy: Math.min(100, state.stats.energy + 15),
-      health: 100,
-    });
+    if (isSurvival) {
+      syncSurvivalNutritionBeforeAdvance();
+    } else {
+      updateStats({
+        water: Math.min(95, state.stats.water + 8),
+        energy: Math.min(100, state.stats.energy + 15),
+        health: 100,
+      });
+    }
     onComplete();
+  };
+
+  const handleFinishSurvivalNow = () => {
+    soundEngine.playSuccess();
+    updateMission2({ nutritionCompleted: true });
+    const details = buildNutritionDetails();
+    onFinishSurvivalTurn?.(details);
   };
 
   const renderFoodButton = (group: FoodGroup, item: FoodItem, selectedName: string | null) => {
@@ -785,23 +848,67 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            disabled={!canFinish}
-            onClick={handleConfirmMeal}
-            className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {canFinish
-              ? `Confirmar Refeição (${totalKcal} kcal) & Ir para Higiene (2.3) ▶`
-              : calorieStatus === 'LOW'
-              ? `Energia insuficiente (${totalKcal} kcal) — Atinga 650–820 kcal`
-              : calorieStatus === 'HIGH'
-              ? `Excesso calórico (${totalKcal} kcal) — Reduza para 650–820 kcal`
-              : !hasBalancedPlate
-              ? 'Monte os 3 grupos alimentares (650–820 kcal)'
-              : 'Dose a água entre 300 ml e 400 ml para confirmar'}
-          </button>
+          {noRationsLeft && (
+            <div className="mb-2 flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={!hasIdealWater}
+                onClick={handleConfirmMeal}
+                className="pixel-btn flex w-full items-center justify-center gap-2 bg-cyan-400 px-4 py-2 font-pixel text-[9px] text-slate-950 hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <Droplets className="h-4 w-4" />
+                {hasIdealWater
+                  ? '💧 Salvar Hidratação (0 Rações) & Ir para Higiene (2.3) ▶'
+                  : '0 rações disponíveis — Dose água (300–400 ml) para hidratar'}
+              </button>
+
+              {onFinishSurvivalTurn && hasIdealWater && (
+                <button
+                  type="button"
+                  onClick={handleFinishSurvivalNow}
+                  className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-2 font-pixel text-[9px] text-slate-950 hover:bg-emerald-300"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  ✅ Hidratar & Concluir Turno Agora (-1 Turno • +8% Saúde) ▶
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={!canFinish || noRationsLeft}
+              onClick={handleConfirmMeal}
+              className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {noRationsLeft
+                ? 'Estoque zerado (0 rações) — Use a Estufa (Estação 4) ou Hidrate acima'
+                : canFinish
+                ? isSurvival
+                  ? `🥗 Registrar Refeição (${totalKcal} kcal) & Ir para Higiene (2.3) ▶`
+                  : `Confirmar Refeição (${totalKcal} kcal) & Ir para Higiene (2.3) ▶`
+                : calorieStatus === 'LOW'
+                ? `Energia insuficiente (${totalKcal} kcal) — Atinga 650–820 kcal`
+                : calorieStatus === 'HIGH'
+                ? `Excesso calórico (${totalKcal} kcal) — Reduza para 650–820 kcal`
+                : !hasBalancedPlate
+                ? 'Monte os 3 grupos alimentares (650–820 kcal)'
+                : 'Dose a água entre 300 ml e 400 ml para confirmar'}
+            </button>
+
+            {isSurvival && canFinish && !noRationsLeft && onFinishSurvivalTurn && (
+              <button
+                type="button"
+                onClick={handleFinishSurvivalNow}
+                className="pixel-btn flex w-full items-center justify-center gap-2 border border-cyan-400/60 bg-cyan-950/70 px-4 py-2 font-pixel text-[9px] text-cyan-200 hover:bg-cyan-900/70"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                ✅ Concluir Turno no Habitat Agora (Sem Higiene • -1 Turno • +22% Saúde • +35% Stamina) ▶
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

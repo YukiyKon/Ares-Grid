@@ -3,12 +3,14 @@ import { ArrowLeft, SunMedium } from 'lucide-react';
 import { CapiAssistant } from '../../components/permanent/CapiAssistant';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { SurvivalStationBanner } from '../../modes/survival30/SurvivalStationBanner';
 import { Step1SiteSelection } from './Step1SiteSelection';
 import { Step2SolarCalc } from './Step2SolarCalc';
 import { Step3SystemTest } from './Step3SystemTest';
 
 export const Mission1SolarScene: React.FC = () => {
   const { state, setScene, updateMission1 } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const phase = state.mission1.phase === 'COMPLETED' ? 'STEP_3_TEST' : state.mission1.phase;
   const [dynamicCapiLine, setDynamicCapiLine] = useState<string | null>(null);
 
@@ -71,6 +73,7 @@ export const Mission1SolarScene: React.FC = () => {
                 type="button"
                 onClick={() => {
                   if (
+                    isSurvival ||
                     stepId === 'STEP_1_SITE' ||
                     (stepId === 'STEP_2_CALC' && state.mission1.selectedSite === 'C') ||
                     (stepId === 'STEP_3_TEST' && state.stats.solarInstalled)
@@ -109,6 +112,8 @@ export const Mission1SolarScene: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <SurvivalStationBanner station="MISSION_1" />
 
       {/* Corpo do desafio atual */}
       <div className="rounded-sm border-2 border-slate-800 bg-slate-950/95 p-4">

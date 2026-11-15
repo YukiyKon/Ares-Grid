@@ -3,6 +3,7 @@ import { ArrowLeft, Snowflake } from 'lucide-react';
 import { CapiAssistant } from '../../components/permanent/CapiAssistant';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { SurvivalStationBanner } from '../../modes/survival30/SurvivalStationBanner';
 import { Step1OrbitalRadarMap } from './Step1OrbitalRadarMap';
 import { Step2DrillAndSample } from './Step2DrillAndSample';
 import { Step3WaterLabAndPotability } from './Step3WaterLabAndPotability';
@@ -10,6 +11,7 @@ import { Step4Mission3Conclusion } from './Step4Mission3Conclusion';
 
 export const Mission3IceScene: React.FC = () => {
   const { state, setScene, updateMission3 } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const phase =
     state.mission3.phase === 'COMPLETED' ? 'STEP_4_CLOSE' : state.mission3.phase;
   const [dynamicCapiLine, setDynamicCapiLine] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export const Mission3IceScene: React.FC = () => {
               ] as const
             ).map(([stepId, label]) => {
               const unlocked =
+                (isSurvival && (stepId === 'STEP_2_DRILL' || stepId === 'STEP_3_LAB')) ||
                 stepId === 'STEP_1_RADAR' ||
                 (stepId === 'STEP_2_DRILL' &&
                   state.mission3.selectedSector === 'GAMMA' &&
@@ -125,6 +128,8 @@ export const Mission3IceScene: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <SurvivalStationBanner station="MISSION_3" />
 
       {/* Etapa ativa da Missão 3 */}
       <div className="rounded-sm border-2 border-slate-800 bg-slate-950/95 p-4">

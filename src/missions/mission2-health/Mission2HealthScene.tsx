@@ -3,13 +3,15 @@ import { ArrowLeft, HeartPulse } from 'lucide-react';
 import { CapiAssistant } from '../../components/permanent/CapiAssistant';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { SurvivalStationBanner } from '../../modes/survival30/SurvivalStationBanner';
 import { Step1ExerciseGym } from './Step1ExerciseGym';
 import { Step2NutritionGalley } from './Step2NutritionGalley';
 import { Step3HygieneModule } from './Step3HygieneModule';
 import { Step4SleepAndCapiNight } from './Step4SleepAndCapiNight';
 
 export const Mission2HealthScene: React.FC = () => {
-  const { state, setScene, updateMission2 } = useGameStore();
+  const { state, setScene, updateMission2, executeSurvivalStationAction } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const phase =
     state.mission2.phase === 'COMPLETED' ? 'STEP_4_SLEEP' : state.mission2.phase;
   const [dynamicCapiLine, setDynamicCapiLine] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export const Mission2HealthScene: React.FC = () => {
               ] as const
             ).map(([stepId, label]) => {
               const unlocked =
+                (isSurvival && stepId !== 'STEP_4_SLEEP') ||
                 stepId === 'STEP_1_GYM' ||
                 (stepId === 'STEP_2_GALLEY' && state.mission2.exercisesCompleted.length >= 4) ||
                 (stepId === 'STEP_3_HYGIENE' && state.mission2.nutritionCompleted) ||
@@ -122,6 +125,8 @@ export const Mission2HealthScene: React.FC = () => {
         </div>
       </div>
 
+      <SurvivalStationBanner station="MISSION_2" />
+
       {/* Corpo do desafio atual */}
       <div className="rounded-sm border-2 border-slate-800 bg-slate-950/95 p-4">
         {phase === 'STEP_1_GYM' && (
@@ -134,13 +139,21 @@ export const Mission2HealthScene: React.FC = () => {
         {phase === 'STEP_2_GALLEY' && (
           <Step2NutritionGalley
             onComplete={() => handleMovePhase('STEP_3_HYGIENE')}
+            onFinishSurvivalTurn={(details) => executeSurvivalStationAction('MISSION_2', details)}
             onCapiFeedback={(line) => setDynamicCapiLine(line)}
           />
         )}
 
         {phase === 'STEP_3_HYGIENE' && (
           <Step3HygieneModule
-            onComplete={() => handleMovePhase('STEP_4_SLEEP')}
+            onComplete={() =>
+              isSurvival
+                ? executeSurvivalStationAction('MISSION_2', {
+                    hygieneCompleted: true,
+                    hygieneSummary: 'Ambiente, mãos e luvas esterilizados',
+                  })
+                : handleMovePhase('STEP_4_SLEEP')
+            }
             onCapiFeedback={(line) => setDynamicCapiLine(line)}
           />
         )}

@@ -303,6 +303,82 @@ class SoundEngine {
     noise.start(now);
     noise.stop(now + durationSec + 0.005);
   }
+
+  public playEmergencySiren(): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [0, 0.3].forEach((offset) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(440, now + offset);
+      osc.frequency.linearRampToValueAtTime(880, now + offset + 0.14);
+      osc.frequency.linearRampToValueAtTime(440, now + offset + 0.28);
+
+      gain.gain.setValueAtTime(0.01, now + offset);
+      gain.gain.linearRampToValueAtTime(0.11, now + offset + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.29);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.3);
+    });
+  }
+
+  public playRadarBeep(secondsLeft: number): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const clampedLeft = Math.max(0, Math.min(15, secondsLeft));
+    const freq = 600 + (15 - clampedLeft) * 45;
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, now);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(clampedLeft <= 4 ? 0.095 : 0.055, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.095);
+  }
+
+  public playCriticalHeartbeat(): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [
+      { offset: 0, freq: 68, peak: 0.12 },
+      { offset: 0.22, freq: 58, peak: 0.09 },
+    ].forEach(({ offset, freq, peak }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(34, now + offset + 0.14);
+
+      gain.gain.setValueAtTime(0.001, now + offset);
+      gain.gain.linearRampToValueAtTime(peak, now + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.16);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.17);
+    });
+  }
 }
 
 export const soundEngine = new SoundEngine();

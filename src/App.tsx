@@ -5,6 +5,7 @@ import { SleepReportModal } from './components/permanent/SleepReportModal';
 import { TopStatusHUD } from './components/permanent/TopStatusHUD';
 import { GameProvider } from './core/gameStore';
 import { SceneManager } from './core/SceneManager';
+import { SurvivalCrisisOverlay } from './modes/survival30/SurvivalCrisisOverlay';
 
 export const App: React.FC = () => {
   return (
@@ -15,6 +16,7 @@ export const App: React.FC = () => {
         <ArcadiaMapModal />
         <LogbookModal />
         <SleepReportModal />
+        <SurvivalCrisisOverlay />
       </div>
     </GameProvider>
   );

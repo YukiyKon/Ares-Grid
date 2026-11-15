@@ -5,7 +5,7 @@ import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 
 export const StartScreenScene: React.FC = () => {
-  const { setScene } = useGameStore();
+  const { setScene, startSurvivalMode } = useGameStore();
   const [imgError, setImgError] = useState(false);
 
   const handleStartFullscreen = () => {
@@ -25,6 +25,19 @@ export const StartScreenScene: React.FC = () => {
     soundEngine.unlock();
     soundEngine.playClick();
     setScene('COUNTDOWN');
+  };
+
+  const handleStartSurvival30 = () => {
+    soundEngine.unlock();
+    soundEngine.playSuccess();
+    try {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        void document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch {
+      // Fallback silencioso caso o navegador bloqueie tela cheia
+    }
+    startSurvivalMode();
   };
 
   return (
@@ -65,29 +78,66 @@ export const StartScreenScene: React.FC = () => {
             AVENTURA EM MARTE: ARCADIA PLANITIA
           </h1>
           <p className="mx-auto max-w-lg font-dialog text-sm leading-relaxed text-slate-200 sm:text-base">
-            Prepare seu traje, ative a assistente Capi e enfrente 5 missões científicas
-            reais para gerar energia solar, encontrar gelo, cultivar alimentos e proteger a base marciana!
+            Escolha seu modo de missão: aprenda os sistemas científicos no{' '}
+            <strong className="text-amber-200">Modo 1 (Treinamento de Cadete)</strong> ou encare
+            o desafio estratégico no{' '}
+            <strong className="text-emerald-300">Modo 2 (Sobreviver 30 Sols)</strong>!
           </p>
         </div>
 
-        <div className="flex w-full max-w-md flex-col items-center gap-3 pt-2">
-          <button
-            type="button"
-            onClick={handleStartFullscreen}
-            className="pixel-btn flex w-full items-center justify-center gap-2.5 bg-amber-400 px-6 py-4 font-pixel text-[11px] leading-snug text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.4)] transition hover:scale-[1.02] hover:bg-amber-300 sm:text-xs"
-          >
-            <Maximize2 className="h-4 w-4 shrink-0" />
-            <span>🚀 INICIAR EXPEDIÇÃO (TELA CHEIA)</span>
-          </button>
+        <div className="grid w-full gap-3 pt-2 sm:grid-cols-2">
+          <div className="flex flex-col justify-between gap-2.5 rounded-sm border-2 border-amber-400/70 bg-slate-900/90 p-3.5 text-left">
+            <div>
+              <span className="font-pixel text-[8px] text-amber-300">
+                MODO 1 • TUTORIAL GUIADO
+              </span>
+              <h2 className="mt-1 font-dialog text-sm font-bold text-slate-100">
+                Treinamento de Cadete (5 Missões + História)
+              </h2>
+              <p className="mt-0.5 font-dialog text-xs text-slate-300">
+                Contagem regressiva, personalização de traje e mini-games passo a passo com a Capi.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleStartFullscreen}
+              className="pixel-btn flex w-full items-center justify-center gap-2 bg-amber-400 px-4 py-3 font-pixel text-[10px] leading-snug text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.35)] transition hover:scale-[1.02] hover:bg-amber-300"
+            >
+              <Maximize2 className="h-4 w-4 shrink-0" />
+              <span>🚀 INICIAR TREINAMENTO</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={handleStartWindowed}
-            className="rounded-sm border border-slate-700 bg-slate-900/70 px-4 py-1.5 font-dialog text-xs text-slate-300 underline-offset-2 transition hover:border-cyan-400 hover:text-cyan-200"
-          >
-            Jogar em janela normal
-          </button>
+          <div className="flex flex-col justify-between gap-2.5 rounded-sm border-2 border-emerald-400/75 bg-emerald-950/35 p-3.5 text-left">
+            <div>
+              <span className="font-pixel text-[8px] text-emerald-300">
+                MODO 2 • DESAFIO DE SOBREVIVÊNCIA
+              </span>
+              <h2 className="mt-1 font-dialog text-sm font-bold text-slate-100">
+                Expedição Real: 30 Sols em Arcadia
+              </h2>
+              <p className="mt-0.5 font-dialog text-xs text-slate-300">
+                Mapa livre, 4 turnos/Sol, gestão de Stamina, energia, água, comida e tempestades!
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleStartSurvival30}
+              className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-3 font-pixel text-[10px] leading-snug text-slate-950 shadow-[0_0_24px_rgba(52,211,153,0.35)] transition hover:scale-[1.02] hover:bg-emerald-300"
+            >
+              <Rocket className="h-4 w-4 shrink-0" />
+              <span>🚀 Iniciar Expedição 30 Sols</span>
+            </button>
+          </div>
         </div>
+
+        <button
+          type="button"
+          onClick={handleStartWindowed}
+          className="rounded-sm border border-slate-700 bg-slate-900/70 px-4 py-1.5 font-dialog text-xs text-slate-300 underline-offset-2 transition hover:border-cyan-400 hover:text-cyan-200"
+        >
+          Jogar Treinamento em janela normal
+        </button>
       </div>
     </main>
   );

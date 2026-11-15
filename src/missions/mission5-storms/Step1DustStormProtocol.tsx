@@ -73,6 +73,7 @@ export const Step1DustStormProtocol: React.FC<Step1DustStormProtocolProps> = ({
   onCapiFeedback,
 }) => {
   const { state, updateMission5, updateStats } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const proto = state.mission5.dustProtocol;
 
   const [leverPct, setLeverPct] = useState<Record<HatchKey, number>>({
@@ -102,7 +103,7 @@ export const Step1DustStormProtocol: React.FC<Step1DustStormProtocolProps> = ({
     if (hasInitRef.current) return;
     hasInitRef.current = true;
 
-    if (!state.mission5.mission5Completed) {
+    if (isSurvival || !state.mission5.mission5Completed) {
       const resetProto = {
         checkPanel: false,
         stopExternalAndReturn: false,
@@ -386,7 +387,9 @@ export const Step1DustStormProtocol: React.FC<Step1DustStormProtocolProps> = ({
             className="pixel-btn mt-1 w-full bg-orange-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-orange-300 disabled:cursor-not-allowed disabled:opacity-45"
           >
             {allReady
-              ? 'Poeira Baixou — Limpar Painéis Solares (Desafio 5.2) ▶'
+              ? isSurvival
+                ? '🛡️ Ativar Proteção da Base (-1 Turno • -10% Stamina) ▶'
+                : 'Poeira Baixou — Limpar Painéis Solares (Desafio 5.2) ▶'
               : `Arraste as 4 escotilhas até VEDADO (${doneCount}/4)`}
           </button>
         </div>

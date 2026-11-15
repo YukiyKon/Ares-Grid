@@ -59,6 +59,7 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
   onCapiFeedback,
 }) => {
   const { state, updateMission4 } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const { envSettings, growthStage, selectedCrops } = state.mission4;
 
   const [mistPct, setMistPct] = useState(0);
@@ -86,7 +87,7 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
   useEffect(() => {
     if (hasInitRef.current) return;
     hasInitRef.current = true;
-    if (!state.mission4.mission4Completed) {
+    if (isSurvival || !state.mission4.mission4Completed) {
       mistPctRef.current = 0;
       setMistPct(0);
       setHarvested({
@@ -527,7 +528,9 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
           >
             <CheckCircle2 className="h-4 w-4" />
             {allHarvested
-              ? 'Integrar Sistema Bioregenerativo (Desafio 4.5) ▶'
+              ? isSurvival
+                ? '🌱 Colher & Armazenar (+3 Rações • +10% Saúde • -1 Turno) ▶'
+                : 'Integrar Sistema Bioregenerativo (Desafio 4.5) ▶'
               : growthStage < 3
               ? `Borrife névoa na bandeja (${growthStage}/3 estágios)`
               : `Colha os 4 vegetais/frutos maduros (${harvestCount}/4)`}

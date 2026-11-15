@@ -94,7 +94,13 @@ export const Step3WaterLabAndPotability: React.FC<Step3WaterLabAndPotabilityProp
   onComplete,
   onCapiFeedback,
 }) => {
-  const { state, updateMission3, completeMission3WaterDiscovery } = useGameStore();
+  const {
+    state,
+    updateMission3,
+    completeMission3WaterDiscovery,
+    executeSurvivalStationAction,
+  } = useGameStore();
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
   const { processSteps, potabilityChecks } = state.mission3;
   const [safetyBlockedWarning, setSafetyBlockedWarning] = useState(false);
 
@@ -303,6 +309,10 @@ export const Step3WaterLabAndPotability: React.FC<Step3WaterLabAndPotabilityProp
     }
 
     soundEngine.playSuccess();
+    if (isSurvival) {
+      executeSurvivalStationAction('MISSION_3');
+      return;
+    }
     completeMission3WaterDiscovery();
     onComplete();
   };
@@ -381,7 +391,9 @@ export const Step3WaterLabAndPotability: React.FC<Step3WaterLabAndPotabilityProp
             >
               <Droplets className="h-4 w-4" />
               {isWaterSafeToDrink
-                ? 'Liberar Água Potável & Abastecer Base (100%) ▶'
+                ? isSurvival
+                  ? '💧 Abastecer Base (+35% Água Potável • -1 Turno) ▶'
+                  : 'Liberar Água Potável & Abastecer Base (100%) ▶'
                 : 'Tentar Beber / Liberar Água Agora'}
             </button>
           </div>
