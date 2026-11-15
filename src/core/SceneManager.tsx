@@ -16,15 +16,24 @@ import {
 import { ASSET_MANIFEST } from '../assets/assetManifest';
 import { AstronautAvatar } from '../components/permanent/AstronautAvatar';
 import { CapiAssistant } from '../components/permanent/CapiAssistant';
+import { useLanguage } from '../i18n/LanguageContext';
 import { MISSION_REGISTRY } from '../missions/missionRegistry';
 import { Mission1SolarScene } from '../missions/mission1-solar/Mission1SolarScene';
 import { Mission2HealthScene } from '../missions/mission2-health/Mission2HealthScene';
 import { Mission3IceScene } from '../missions/mission3-ice/Mission3IceScene';
 import { Mission4GreenhouseScene } from '../missions/mission4-greenhouse/Mission4GreenhouseScene';
 import { Mission5StormsScene } from '../missions/mission5-storms/Mission5StormsScene';
+import {
+  formatNoticeDescriptor,
+  getLocalizedDominoAlerts,
+  getLocalizedEarthSyncStatus,
+  getLocalizedStationRule,
+  getLocalizedWeather,
+} from '../modes/survival30/survivalI18n';
 import { SurvivalResultOverlay } from '../modes/survival30/SurvivalResultOverlay';
 import {
   SURVIVAL_STATION_RULES,
+  type SurvivalNoticeDescriptor,
   type SurvivalStationId,
 } from '../modes/survival30/survivalTypes';
 import {
@@ -42,21 +51,35 @@ import { StartScreenScene } from '../scenes/intro/StartScreenScene';
 import { useGameStore } from './gameStore';
 import { soundEngine } from './soundEngine';
 
+type HubFeedback =
+  | { kind: 'LOCKED_MISSION'; missionId: string }
+  | { kind: 'SURVIVAL_NOTICE'; descriptor: SurvivalNoticeDescriptor }
+  | null;
+
 const BaseHubScene: React.FC = () => {
   const { state, setScene, openModal } = useGameStore();
+  const { dict, tx, translateText } = useLanguage();
   const [imgError, setImgError] = useState(false);
-  const [hubFeedbackLine, setHubFeedbackLine] = useState<string | null>(null);
+  const [hubFeedback, setHubFeedback] = useState<HubFeedback>(null);
   const mission1 = MISSION_REGISTRY[0];
   const mission2 = MISSION_REGISTRY[1];
   const mission3 = MISSION_REGISTRY[2];
   const mission4 = MISSION_REGISTRY[3];
   const mission5 = MISSION_REGISTRY[4];
   const isSurvival = state.gameMode === 'SURVIVAL_30';
-  const survivalWeather = getSolWeather(state.survival.sol);
+  const rawWeather = getSolWeather(state.survival.sol);
+  const survivalWeather = getLocalizedWeather(rawWeather.type, dict);
   const earlyWarning = isSurvival ? getNextSolEarlyWarning(state.survival.sol) : null;
-  const earlyWarningText = earlyWarning
-    ? `⚠️ Aviso Orbital para amanhã (Sol ${earlyWarning.sol}): ${earlyWarning.title} — ${earlyWarning.capiAdvice}`
+  const earlyWarningWeather = earlyWarning
+    ? getLocalizedWeather(earlyWarning.type, dict)
     : null;
+  const earlyWarningText =
+    earlyWarning && earlyWarningWeather
+      ? tx(
+          `⚠️ Orbital Alert for tomorrow (Sol ${earlyWarning.sol}): ${earlyWarningWeather.title} — ${earlyWarningWeather.capiAdvice}`,
+          `⚠️ Aviso Orbital para amanhã (Sol ${earlyWarning.sol}): ${earlyWarningWeather.title} — ${earlyWarningWeather.capiAdvice}`
+        )
+      : null;
 
   const { solarInstalled } = state.stats;
   const { mission1Completed, mission2Unlocked } = state.mission1;
@@ -65,14 +88,34 @@ const BaseHubScene: React.FC = () => {
   const { mission4Completed, mission5Unlocked } = state.mission4;
   const { mission5Completed, endingUnlocked } = state.mission5;
 
+  const localizedDominoAlerts = isSurvival
+    ? getLocalizedDominoAlerts(state.survival, dict)
+    : [];
+  const localizedLastNotice = isSurvival
+    ? formatNoticeDescriptor(
+        state.survival.lastNoticeDescriptor,
+        dict,
+        state.survival.lastActionNotice,
+        translateText
+      )
+    : null;
+
   const survivalCapiLines = [
-    ...(state.survival.dominoAlerts.length > 0
-      ? [`⚠️ EFEITO DOMINÓ ATIVO: ${state.survival.dominoAlerts[0]}`]
+    ...(localizedDominoAlerts.length > 0
+      ? [
+          tx(
+            `⚠️ ACTIVE CASCADE ALERT: ${localizedDominoAlerts[0]}`,
+            `⚠️ EFEITO DOMINÓ ATIVO: ${localizedDominoAlerts[0]}`
+          ),
+        ]
       : []),
-    ...(state.survival.lastActionNotice ? [state.survival.lastActionNotice] : []),
+    ...(localizedLastNotice ? [localizedLastNotice] : []),
     `Sol ${state.survival.sol}/30 • ${survivalWeather.shortBadge}: ${survivalWeather.capiAdvice}`,
     earlyWarningText ??
-      `Turnos restantes: ${state.survival.turnsLeft}/4 | Stamina: ${state.survival.stamina}/${state.survival.maxStamina}% | Poeira nos painéis: ${state.survival.panelDustPct}%.`,
+      tx(
+        `Turns left: ${state.survival.turnsLeft}/4 | Stamina: ${state.survival.stamina}/${state.survival.maxStamina}% | Panel dust: ${state.survival.panelDustPct}%.`,
+        `Turnos restantes: ${state.survival.turnsLeft}/4 | Stamina: ${state.survival.stamina}/${state.survival.maxStamina}% | Poeira nos painéis: ${state.survival.panelDustPct}%.`
+      ),
   ];
 
   const defaultCapiLines = isSurvival
@@ -113,8 +156,6 @@ const BaseHubScene: React.FC = () => {
         'Clique em "Iniciar Missão 1: Energia Solar" ou direto na Área Solar marcada no terreno!',
       ];
 
-  const capiLines = hubFeedbackLine ? [hubFeedbackLine] : defaultCapiLines;
-
   const getLockedMissionHint = (missionId: string) => {
     switch (missionId) {
       case 'MISSION_2':
@@ -130,39 +171,67 @@ const BaseHubScene: React.FC = () => {
     }
   };
 
+  const resolvedFeedbackLine =
+    hubFeedback?.kind === 'LOCKED_MISSION'
+      ? getLockedMissionHint(hubFeedback.missionId)
+      : hubFeedback?.kind === 'SURVIVAL_NOTICE'
+      ? formatNoticeDescriptor(hubFeedback.descriptor, dict)
+      : null;
+
+  const capiLines = resolvedFeedbackLine ? [resolvedFeedbackLine] : defaultCapiLines;
+
   const tryOpenSurvivalStation = (stationId: SurvivalStationId) => {
     if (isSurvival) {
       const rule = SURVIVAL_STATION_RULES[stationId];
       if (state.survival.turnsLeft <= 0) {
         soundEngine.playAlert();
-        setHubFeedbackLine(
-          'Todos os 4 Turnos deste Sol acabaram! Clique em "🌙 Dormir" para processar o balanço noturno e avançar para o próximo Sol.'
-        );
+        setHubFeedback({
+          kind: 'SURVIVAL_NOTICE',
+          descriptor: { kind: 'ZERO_TURNS_LEFT' },
+        });
         return;
       }
       if (state.survival.stamina < rule.minStamina) {
         soundEngine.playAlert();
-        setHubFeedbackLine(
-          `Stamina insuficiente (${state.survival.stamina}% < ${rule.minStamina}%) para operar ${rule.shortName}. Visite o Habitat (Estação 2) ou clique em "🌙 Dormir" para descansar!`
-        );
+        setHubFeedback({
+          kind: 'SURVIVAL_NOTICE',
+          descriptor: {
+            kind: 'INSUFFICIENT_STAMINA',
+            station: stationId,
+            cost: rule.minStamina,
+            current: state.survival.stamina,
+          },
+        });
         return;
       }
       if (rule.minWater && state.survival.water < rule.minWater) {
         soundEngine.playAlert();
-        setHubFeedbackLine(
-          `Água insuficiente (${state.survival.water}% < ${rule.minWater}%) para ${rule.shortName}. Extraia gelo na Estação 3 (Setor Norte) primeiro!`
-        );
+        setHubFeedback({
+          kind: 'SURVIVAL_NOTICE',
+          descriptor: {
+            kind: 'INSUFFICIENT_WATER',
+            station: stationId,
+            minWater: rule.minWater,
+            current: state.survival.water,
+          },
+        });
         return;
       }
       if (rule.minEnergy && state.survival.energy < rule.minEnergy) {
         soundEngine.playAlert();
-        setHubFeedbackLine(
-          `Energia insuficiente (${state.survival.energy}% < ${rule.minEnergy}%) para ${rule.shortName}. Limpe os painéis na Estação 1 (Painéis Solares) primeiro!`
-        );
+        setHubFeedback({
+          kind: 'SURVIVAL_NOTICE',
+          descriptor: {
+            kind: 'INSUFFICIENT_ENERGY',
+            station: stationId,
+            minEnergy: rule.minEnergy,
+            current: state.survival.energy,
+          },
+        });
         return;
       }
     }
-    setHubFeedbackLine(null);
+    setHubFeedback(null);
     soundEngine.playClick();
     setScene(stationId);
   };
@@ -206,11 +275,11 @@ const BaseHubScene: React.FC = () => {
             type="button"
             onClick={() => {
               if (isSurvival || mission2Unlocked) {
-                setHubFeedbackLine(null);
+                setHubFeedback(null);
                 handleOpenMission2();
               } else {
                 soundEngine.playAlert();
-                setHubFeedbackLine(getLockedMissionHint('MISSION_2'));
+                setHubFeedback({ kind: 'LOCKED_MISSION', missionId: 'MISSION_2' });
               }
             }}
             aria-disabled={!isSurvival && !mission2Unlocked}
@@ -229,7 +298,7 @@ const BaseHubScene: React.FC = () => {
             </span>
             <span className="font-dialog text-[10px] text-slate-200 sm:text-[11px]">
               {isSurvival
-                ? 'Saúde & Treino (-1 Turno) ▶'
+                ? tx('Health & Training (-1 Turn) ▶', 'Saúde & Treino (-1 Turno) ▶')
                 : mission2Completed
                   ? 'Saúde OK ✓'
                   : mission2Unlocked
@@ -299,14 +368,17 @@ const BaseHubScene: React.FC = () => {
             >
               <span className="block font-pixel text-[6.5px] sm:text-[8px]">
                 {isSurvival
-                  ? `PAINÉIS (${state.survival.panelDustPct}% POEIRA)`
+                  ? tx(
+                      `PANELS (${state.survival.panelDustPct}% DUST)`,
+                      `PAINÉIS (${state.survival.panelDustPct}% POEIRA)`
+                    )
                   : solarInstalled
                     ? `PAINÉIS ATIVOS (${state.mission1.generatedWatts || 480} W)`
                     : 'ÁREA SOLAR (MISSÃO 1)'}
               </span>
               <span className="font-dialog text-[10px] text-slate-200 sm:text-[11px]">
                 {isSurvival
-                  ? 'Limpar poeira (-1 Turno) ▶'
+                  ? tx('Clean dust (-1 Turn) ▶', 'Limpar poeira (-1 Turno) ▶')
                   : solarInstalled
                     ? 'Clique para gerenciar'
                     : 'Clique para instalar ▶'}
@@ -325,7 +397,7 @@ const BaseHubScene: React.FC = () => {
                 <div className="flex items-center gap-2 text-amber-300">
                   <SunMedium className="h-5 w-5 text-amber-300" />
                   <h1 className="font-pixel text-xs">
-                    EXPEDIÇÃO REAL: 30 SOLS (SOL {state.survival.sol}/30)
+                    {dict.survival.baseHub.expeditionBadge(state.survival.sol)}
                   </h1>
                 </div>
                 <span className="rounded-sm border border-amber-400/70 bg-amber-950/60 px-2 py-0.5 font-dialog text-[11px] font-bold text-amber-200">
@@ -334,17 +406,25 @@ const BaseHubScene: React.FC = () => {
               </div>
 
               <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
-                Operação livre pelos 5 setores de Arcadia Planitia. Cada Sol tem{' '}
-                <strong className="text-amber-300">4 Turnos de Ação</strong>. Gerencie Stamina,
-                Poeira Solar ({state.survival.panelDustPct}%), Água, Comida e Proteção contra Tempestades antes de dormir!
+                {tx(
+                  'Open operation across all 5 Arcadia Planitia sectors. Each Sol has ',
+                  'Operação livre pelos 5 setores de Arcadia Planitia. Cada Sol tem '
+                )}
+                <strong className="text-amber-300">
+                  {tx('4 Action Turns', '4 Turnos de Ação')}
+                </strong>
+                {tx(
+                  `. Manage Stamina, Solar Dust (${state.survival.panelDustPct}%), Water, Food, and Storm Protection before sleeping!`,
+                  `. Gerencie Stamina, Poeira Solar (${state.survival.panelDustPct}%), Água, Comida e Proteção contra Tempestades antes de dormir!`
+                )}
               </p>
 
-              {state.survival.dominoAlerts.length > 0 && (
+              {localizedDominoAlerts.length > 0 && (
                 <div className="mt-2.5 space-y-1 rounded-sm border-2 border-rose-500/75 bg-rose-950/50 px-3 py-2 font-dialog text-xs text-rose-100">
                   <span className="block font-pixel text-[8px] text-rose-300">
-                    ⚠️ EFEITO DOMINÓ EM CASCATA ({state.survival.dominoAlerts.length})
+                    ⚠️ {dict.survival.baseHub.cascadeTitle} ({localizedDominoAlerts.length})
                   </span>
-                  {state.survival.dominoAlerts.map((alert) => (
+                  {localizedDominoAlerts.map((alert) => (
                     <p key={alert}>• {alert}</p>
                   ))}
                 </div>
@@ -358,7 +438,10 @@ const BaseHubScene: React.FC = () => {
 
               {state.survival.turnsLeft <= 0 && (
                 <div className="mt-2.5 rounded-sm border border-indigo-400 bg-indigo-950/60 px-3 py-2 font-dialog text-xs font-bold text-indigo-100">
-                  Turnos do Sol {state.survival.sol} esgotados (0/4). Clique em &quot;Dormir&quot; para avançar para o Sol {Math.min(30, state.survival.sol + 1)}/30!
+                  {tx(
+                    `Turns for Sol ${state.survival.sol} depleted (0/4). Click "Sleep" to advance to Sol ${Math.min(30, state.survival.sol + 1)}/30!`,
+                    `Turnos do Sol ${state.survival.sol} esgotados (0/4). Clique em "Dormir" para avançar para o Sol ${Math.min(30, state.survival.sol + 1)}/30!`
+                  )}
                 </div>
               )}
             </>
@@ -528,7 +611,7 @@ const BaseHubScene: React.FC = () => {
                   className="pixel-btn inline-flex items-center gap-1.5 bg-amber-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-amber-300"
                 >
                   <SunMedium className="h-3.5 w-3.5" />
-                  1. Solar
+                  {tx('1. Solar', '1. Solar')}
                 </button>
                 <button
                   type="button"
@@ -536,7 +619,7 @@ const BaseHubScene: React.FC = () => {
                   className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-cyan-300"
                 >
                   <HeartPulse className="h-3.5 w-3.5" />
-                  2. Saúde
+                  {tx('2. Health', '2. Saúde')}
                 </button>
                 <button
                   type="button"
@@ -544,7 +627,7 @@ const BaseHubScene: React.FC = () => {
                   className="pixel-btn inline-flex items-center gap-1.5 bg-sky-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-sky-300"
                 >
                   <Snowflake className="h-3.5 w-3.5" />
-                  3. Gelo/Água
+                  {tx('3. Ice/Water', '3. Gelo/Água')}
                 </button>
                 <button
                   type="button"
@@ -552,7 +635,7 @@ const BaseHubScene: React.FC = () => {
                   className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-emerald-300"
                 >
                   <Sprout className="h-3.5 w-3.5" />
-                  4. Estufa
+                  {tx('4. Greenhouse', '4. Estufa')}
                 </button>
                 <button
                   type="button"
@@ -560,7 +643,7 @@ const BaseHubScene: React.FC = () => {
                   className="pixel-btn inline-flex items-center gap-1.5 bg-orange-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-orange-300"
                 >
                   <ShieldAlert className="h-3.5 w-3.5" />
-                  5. Abrigo
+                  {tx('5. Shelter', '5. Abrigo')}
                 </button>
               </>
             )}
@@ -693,10 +776,12 @@ const BaseHubScene: React.FC = () => {
         <div className="rounded-sm border-2 border-slate-800 bg-slate-950 p-4">
           <div className="mb-2 flex items-center gap-2 text-cyan-300">
             <Sparkles className="h-4 w-4" />
-            <h2 className="font-pixel text-[10px]">CARTUCHOS DA EXPEDIÇÃO</h2>
+            <h2 className="font-pixel text-[10px]">
+              {tx('EXPEDITION CARTRIDGES', 'CARTUCHOS DA EXPEDIÇÃO')}
+            </h2>
           </div>
           <p className="mb-2.5 font-dialog text-[11px] text-slate-400">
-            {state.lastEarthSyncStatus}
+            {getLocalizedEarthSyncStatus(state.lastEarthSyncStatus, dict, translateText)}
           </p>
           <ul className="space-y-2">
             {MISSION_REGISTRY.map((mission) => {
@@ -718,7 +803,7 @@ const BaseHubScene: React.FC = () => {
                 isM4Unlocked ||
                 isM5Unlocked;
               const survivalRule = isSurvival
-                ? SURVIVAL_STATION_RULES[mission.id as SurvivalStationId]
+                ? getLocalizedStationRule(mission.id as SurvivalStationId, dict)
                 : null;
 
               return (
@@ -729,10 +814,10 @@ const BaseHubScene: React.FC = () => {
                     onClick={() => {
                       if (!isClickable) {
                         soundEngine.playAlert();
-                        setHubFeedbackLine(getLockedMissionHint(mission.id));
+                        setHubFeedback({ kind: 'LOCKED_MISSION', missionId: mission.id });
                         return;
                       }
-                      setHubFeedbackLine(null);
+                      setHubFeedback(null);
                       if (mission.id === 'MISSION_1') handleOpenMission1();
                       if (mission.id === 'MISSION_2') handleOpenMission2();
                       if (mission.id === 'MISSION_3') handleOpenMission3();
@@ -749,7 +834,7 @@ const BaseHubScene: React.FC = () => {
                   >
                     <div>
                       <p className="font-dialog text-xs font-bold text-slate-100">
-                        {mission.title}
+                        {survivalRule ? survivalRule.title : mission.title}
                       </p>
                       <p className="font-dialog text-[10px] text-slate-400">
                         {survivalRule

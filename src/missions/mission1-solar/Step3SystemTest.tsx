@@ -14,6 +14,7 @@ import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { DustScrubCanvas } from '../../components/minigames/DustScrubCanvas';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface Step3SystemTestProps {
   onCapiFeedback: (line: string) => void;
@@ -31,6 +32,7 @@ export const Step3SystemTest: React.FC<Step3SystemTestProps> = ({
     executeSurvivalStationAction,
     setSurvivalPowerSave,
   } = useGameStore();
+  const { dict } = useLanguage();
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const [timePhase, setTimePhase] = useState<'DAY' | 'DUSK'>('DAY');
   const [hasDust, setHasDust] = useState(isSurvival);
@@ -275,18 +277,18 @@ export const Step3SystemTest: React.FC<Step3SystemTestProps> = ({
             <div className="flex items-center gap-2">
               <SunMedium className="h-4 w-4 text-amber-300" />
               <h3 className="font-pixel text-[10px] text-amber-300">
-                MANUTENÇÃO SOLAR REAL — SOL {state.survival.sol}/30
+                {dict.survival.missionActions.m1SurvivalCardTitle(state.survival.sol)}
               </h3>
             </div>
             <span className="rounded-sm border border-amber-400/70 bg-amber-950/60 px-2 py-0.5 font-dialog text-[11px] text-amber-200">
-              Poeira atual na base: {state.survival.panelDustPct}%
+              {dict.survival.missionActions.m1SurvivalDustLabel} {state.survival.panelDustPct}%
             </span>
           </div>
 
           <p className="mb-3 font-dialog text-xs text-slate-300">
             {survivalScrubDone
-              ? 'Painel solar limpo e calibrado! Conclua a manutenção para zerar a poeira acumulada na base e recuperar +15% de Energia.'
-              : 'Esfregue toda a poeira sobre o painel acima até atingir 90%+ para liberar o registro de manutenção.'}
+              ? dict.survival.missionActions.m1SurvivalReadyDesc
+              : dict.survival.missionActions.m1SurvivalPendingDesc}
           </p>
 
           <button
@@ -299,7 +301,7 @@ export const Step3SystemTest: React.FC<Step3SystemTestProps> = ({
             className="pixel-btn inline-flex items-center gap-2 bg-amber-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <SunMedium className="h-4 w-4" />
-            ☀️ Concluir Manutenção Solar (-1 Turno • -15% Stamina • +15% Energia) ▶
+            {dict.survival.missionActions.m1SurvivalBtn} ▶
           </button>
         </div>
       ) : (

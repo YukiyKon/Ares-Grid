@@ -125,6 +125,203 @@ export interface UiDictionary {
     canvasRecordPrefix: string;
     defaultObservationTitle: string;
   };
+  survival: {
+    weather: Record<
+      'CLEAR' | 'DUST_WIND' | 'GLOBAL_DUST_STORM' | 'SOLAR_RADIATION_FLARE',
+      {
+        title: string;
+        shortBadge: string;
+        description: string;
+        capiAdvice: string;
+      }
+    >;
+    stations: Record<
+      'MISSION_1' | 'MISSION_2' | 'MISSION_3' | 'MISSION_4' | 'MISSION_5',
+      {
+        title: string;
+        shortTitle: string;
+        costLabel: string;
+        rewardLabel: string;
+        operationTag: string;
+        blockedReason: string;
+        hubPinSub: string;
+        quickBtn: string;
+      }
+    >;
+    crises: Record<
+      'SOLAR_PROTON_SPIKE' | 'HABITAT_MICRO_LEAK' | 'PANEL_SHORT_CIRCUIT',
+      {
+        title: string;
+        capiUrgentWarning: string;
+        penaltySummary: string;
+        actionButtonLabel: string;
+      }
+    >;
+    failureReasons: {
+      ENERGY: (sol: number) => string;
+      WATER: (sol: number) => string;
+      HEALTH: (sol: number) => string;
+    };
+    dominoAlerts: {
+      panelDustCritical: (dustPct: number) => string;
+      greenhouseThermalRisk: string;
+      waterDehydration: string;
+      foodZeroStarvation: string;
+      staminaCapExhaustion: (maxStamina: number) => string;
+    };
+    nightlyDominoEffects: {
+      panelDustPenalty: (dustPct: number, solarGenerated: number) => string;
+      powerSavePenalty: string;
+      starvationPenalty: string;
+      untrainedPenalty: string;
+      unprotectedStormPenalty: (weatherTitle: string, energyLoss: number, healthLoss: number) => string;
+      greenhouseCrashWithFood: string;
+      greenhouseCrashNoFood: string;
+      dehydrationPenalty: string;
+    };
+    dailyLog: {
+      exerciseDone: (count: number) => string;
+      exercisePending: string;
+      mealBalanced: (kcal: number, items?: string) => string;
+      mealNightRation: string;
+      mealMissing: string;
+      hydrationDone: (ml: number, waterPct: number) => string;
+      hydrationNightFallback: (waterPct: number) => string;
+      hydrationInsufficient: string;
+      hygieneDone: string;
+      hygienePending: string;
+      stationOpHabitat: (parts: string[]) => string;
+      habitatPartExercise: string;
+      habitatPartKcal: (kcal: number) => string;
+      habitatPartHydrate: (ml: number) => string;
+      habitatPartHygiene: string;
+      habitatPartRest: string;
+    };
+    stationOps: {
+      MISSION_1: string;
+      MISSION_3: string;
+      MISSION_4: string;
+      MISSION_5: string;
+    };
+    notices: {
+      initial: string;
+      zeroTurnsLeft: string;
+      insufficientStamina: (stationTitle: string, cost: number, current: number) => string;
+      insufficientWater: (stationTitle: string, minWater: number, current: number) => string;
+      insufficientEnergy: (stationTitle: string, minEnergy: number, current: number) => string;
+      stationComplete: {
+        MISSION_1: string;
+        MISSION_2_HYDRATION: string;
+        MISSION_2_FULL: (maxStamina: number) => string;
+        MISSION_3: string;
+        MISSION_4: string;
+        MISSION_5: string;
+      };
+      crisisStarted: (title: string) => string;
+      crisisContained: (title: string) => string;
+      crisisTimeout: (title: string, penaltySummary: string) => string;
+      victory: string;
+      sleepCycleDone: (sol: number, shortBadge: string, isCritical: boolean, stormProtected: boolean) => string;
+      syncCompleted: (sol: number) => string;
+      syncQueued: string;
+    };
+    nightlySummary: {
+      tense: (completedSol: number, firstDominoEffect: string) => string;
+      survivedCritical: (completedSol: number, weatherTitle: string) => string;
+      standard: (completedSol: number, solarGenerated: number, energyConsumed: number, waterConsumed: number) => string;
+    };
+    baseHub: {
+      expeditionBadge: (sol: number) => string;
+      turnsOfSol: string;
+      physicalStamina: string;
+      staminaMaxLabel: (max: number) => string;
+      panelDust: string;
+      weatherToday: string;
+      earlyWarning: (nextSol: number, title: string, advice: string) => string;
+      cascadeTitle: string;
+      sleepBtn: string;
+      lastActionPrefix: string;
+      capiTurnZero: (sol: number) => string;
+      capiMain: (sol: number, turnsLeft: number, dustPct: number, shortBadge: string) => string;
+      capiCascadeWarning: (count: number) => string;
+      cartridgesTitle: string;
+      cartridgesDesc: string;
+      cartridgeCostPrefix: string;
+      availableNow: string;
+      mission1Sub: string;
+      mission2Sub: string;
+      mission3Sub: string;
+      mission4Sub: string;
+      mission5Sub: string;
+    };
+    stationBanner: {
+      badgeTitle: (sol: number) => string;
+      turnsLabel: string;
+      weatherLabel: string;
+      completeDefaultBtn: string;
+      costPrefix: string;
+      rewardPrefix: string;
+    };
+    missionActions: {
+      m1Badge: string;
+      m1Title: string;
+      m1TabSite: string;
+      m1TabCalc: string;
+      m1TabTest: string;
+      m1LockAlert: string;
+      m1SurvivalCardTitle: (sol: number) => string;
+      m1SurvivalDustLabel: string;
+      m1SurvivalReadyDesc: string;
+      m1SurvivalPendingDesc: string;
+      m1SurvivalBtn: string;
+      m2Badge: string;
+      m2Title: string;
+      m2TabExercise: string;
+      m2TabNutrition: string;
+      m2TabHygiene: string;
+      m2TabSleep: string;
+      m2LockAlert: string;
+      m2HygieneFallback: string;
+      m2HydrationOnlyBtn: string;
+      m2HydrationNeedWater: string;
+      m2HydrationQuickTurnBtn: string;
+      m2StockEmptyBtn: string;
+      m2MealStepBtn: (kcal: number) => string;
+      m2MealQuickTurnBtn: string;
+      m2HygieneTitle: string;
+      m2HygieneDone: string;
+      m2HygienePending: string;
+      m2HygieneCompleteBtn: string;
+      m2HygieneProgressBtn: (done: number) => string;
+      m3Badge: string;
+      m3Title: string;
+      m3TabOrbital: string;
+      m3TabDrill: string;
+      m3TabLab: string;
+      m3LockAlert: string;
+      m3SurvivalBtn: string;
+      m4Badge: string;
+      m4Title: string;
+      m4TabMethod: string;
+      m4TabSoil: string;
+      m4TabPlants: string;
+      m4TabGrowth: string;
+      m4TabBioreg: string;
+      m4LockAlert: string;
+      m4SurvivalBtn: string;
+      m5Badge: string;
+      m5Title: string;
+      m5TabDust: string;
+      m5TabSolar: string;
+      m5TabShelter: string;
+      m5TabInspect: string;
+      m5LockAlert: string;
+      m5DustReadyBtn: string;
+      m5DustPendingBtn: (done: number) => string;
+      m5ShelterReadyBtn: string;
+      m5ShelterPendingBtn: string;
+    };
+  };
 }
 
 export const UI_PT: UiDictionary = {
@@ -271,5 +468,285 @@ export const UI_PT: UiDictionary = {
     canvasHeaderPrefix: 'ARCADIA PLANITIA • SOL',
     canvasRecordPrefix: 'REGISTRO',
     defaultObservationTitle: 'OBSERVAÇÃO CIENTÍFICA',
+  },
+  survival: {
+    weather: {
+      CLEAR: {
+        title: 'Céu Marciano Limpo',
+        shortBadge: '☀️ Céu Limpo',
+        description:
+          'Boa incidência solar (~600 W/m² em Arcadia). Poeira atmosférica moderada se acumulando.',
+        capiAdvice:
+          'Sol favorável para gerar energia! Lembre-se de limpar os painéis, extrair gelo ou colher na estufa.',
+      },
+      DUST_WIND: {
+        title: 'Vento de Poeira Fina',
+        shortBadge: '🌪️ Vento de Poeira',
+        description:
+          'Rajadas de vento depositam poeira rápida sobre os painéis solares (-30% de eficiência solar).',
+        capiAdvice:
+          'Poeira em alta! Limpe os painéis solares no Setor 1 para evitar queda de energia no fechamento do Sol.',
+      },
+      GLOBAL_DUST_STORM: {
+        title: 'Tempestade Global de Poeira',
+        shortBadge: '⛈️ Tempestade Crítica',
+        description:
+          'Bloqueio solar severo! Se você não ativar a proteção na Estação 5 hoje, a base perderá -22% Energia e -18% Saúde à noite.',
+        capiAdvice:
+          'PERIGO! Vá à Estação 5 (Tempestades) vedar as escotilhas antes de dormir para evitar o colapso da base!',
+      },
+      SOLAR_RADIATION_FLARE: {
+        title: 'Tempestade de Radiação Solar',
+        shortBadge: '☢️ Alerta Solar',
+        description:
+          'Partículas solares de alta energia atingem Marte. Ative o Abrigo Blindado na Estação 5 hoje ou perca -25% de Saúde!',
+        capiAdvice:
+          'ALERTA SOLAR CRÍTICO! Opere a Estação 5 (Abrigo Blindado) agora para proteger sua saúde da radiação!',
+      },
+    },
+    stations: {
+      MISSION_1: {
+        title: 'Estação 1: Painéis Solares',
+        shortTitle: 'Painéis Solares',
+        costLabel: '-1 Turno • -20% Stamina',
+        rewardLabel: 'Zera poeira solar • +12% Energia',
+        operationTag: 'Painéis Solares limpos (0% poeira) • +12% Energia recuperada',
+        blockedReason: 'Stamina insuficiente (mín. 20%) para operar os Painéis Solares! Descanse ou alimente-se no Habitat.',
+        hubPinSub: '-20% Stam • Poeira 0%',
+        quickBtn: '1. Solar (-20% Stam)',
+      },
+      MISSION_2: {
+        title: 'Estação 2: Habitat / Saúde',
+        shortTitle: 'Habitat & Saúde',
+        costLabel: '-1 Turno • -1 Ração • -12% Água • -6% Energia',
+        rewardLabel: '+22% Saúde • +35% Stamina • restaura Teto de Stamina',
+        operationTag: 'Rotina do Habitat (treino, refeição, hidratação e higiene)',
+        blockedReason: 'Sem turnos disponíveis neste Sol!',
+        hubPinSub: '+35% Stam • +22% Saúde',
+        quickBtn: '2. Habitat (+35% Stam)',
+      },
+      MISSION_3: {
+        title: 'Estação 3: Jazida de Gelo & Lab',
+        shortTitle: 'Gelo & Água',
+        costLabel: '-1 Turno • -30% Stamina • -14% Energia',
+        rewardLabel: '+26% Água Potável na base',
+        operationTag: 'Perfuração a 2,2 m & filtro UV: +26% Água Potável extraída',
+        blockedReason: 'Stamina insuficiente (mín. 30%) para perfurar o gelo marciano! Recupere-se no Habitat.',
+        hubPinSub: '-30% Stam • +26% Água',
+        quickBtn: '3. Gelo (+26% Água)',
+      },
+      MISSION_4: {
+        title: 'Estufa ECLSS',
+        shortTitle: 'Estufa Hidropônica',
+        costLabel: '-1 Turno • -20% Stamina • -16% Água • -10% Energia',
+        rewardLabel: '+2 Rações de Comida • +8% Saúde (O₂)',
+        operationTag: 'Estufa ECLSS: névoa nutritiva e colheita (+2 Rações, +8% O₂/Saúde)',
+        blockedReason: 'Stamina insuficiente (mín. 20%) para manejar a Estufa Hidropônica!',
+        hubPinSub: '-20% Stam • +2 Rações',
+        quickBtn: '4. Estufa (+2 Rações)',
+      },
+      MISSION_5: {
+        title: 'Estação 5: Abrigo & Proteção Ambiental',
+        shortTitle: 'Abrigo & Proteção',
+        costLabel: '-1 Turno • -15% Stamina • -8% Energia',
+        rewardLabel: 'Protege contra Tempestade/Radiação • -10% Poeira nos filtros',
+        operationTag: 'Abrigo & Comunicações: base selada contra tempestade e radiação',
+        blockedReason: 'Stamina insuficiente (mín. 15%) para vedar a base!',
+        hubPinSub: '-15% Stam • Protege Base',
+        quickBtn: '5. Abrigo (-15% Stam)',
+      },
+    },
+    crises: {
+      SOLAR_PROTON_SPIKE: {
+        title: 'PICO SÚBITO DE RADIAÇÃO SOLAR!',
+        capiUrgentWarning: 'TEMPESTADE DE PRÓTONS DETECTADA EM ÓRBITA! Acione as comportas de chumbo/água AGORA ou corra para o Abrigo Blindado antes que o contador zere!',
+        penaltySummary: '-28% Saúde • -15% Stamina por exposição aguda',
+        actionButtonLabel: '🛡️ FECHAR ESCOTILHA BLINDADA AGORA',
+      },
+      HABITAT_MICRO_LEAK: {
+        title: 'MICRO-VAZAMENTO DE PRESSÃO NO HABITAT!',
+        capiUrgentWarning: 'ALERTA DE DESPRESSURIZAÇÃO! Impacto de micrometeorito abriu fissura no domo! Sele a válvula de contenção imediatamente!',
+        penaltySummary: '-22% Energia (aquecimento) • -18% Água • -15% Saúde',
+        actionButtonLabel: '🔧 VEDAR FISSURA DO DOMO AGORA',
+      },
+      PANEL_SHORT_CIRCUIT: {
+        title: 'SOBRECARGA E CURTO NOS PAINÉIS SOLARES!',
+        capiUrgentWarning: 'DESCARGA ESTÁTICA DE POEIRA NO BARRAMENTO SOLAR! Desarme o disjuntor de emergência antes que o banco de baterias queime!',
+        penaltySummary: '-30% Energia das baterias • +25% Poeira aderida',
+        actionButtonLabel: '⚡ DESARMAR DISJUNTOR DE PICO',
+      },
+    },
+    failureReasons: {
+      ENERGY: (sol) => `Colapso energético no Sol ${sol}/30! As baterias zeraram e o suporte térmico da base desligou.`,
+      WATER: (sol) => `Colapso hídrico no Sol ${sol}/30! Os tanques secaram sem reserva suficiente na Estação 3.`,
+      HEALTH: (sol) => `Colapso médico no Sol ${sol}/30! Exaustão severa, desidratação ou exposição sem abrigo vitimou a tripulação.`,
+    },
+    dominoAlerts: {
+      panelDustCritical: (dustPct) => `Poeira crítica (${dustPct}%): rendimento solar derrubado para 30%–62%!`,
+      greenhouseThermalRisk: 'Energia < 30% → Estufa em risco térmico: perda de colheita (-1 ração) e O₂ (-8% saúde) à noite!',
+      waterDehydration: 'Água < 25% → Desidratação ativa: penalidade de saúde noturna e queda de Stamina máxima!',
+      foodZeroStarvation: 'Estoque ZERO de rações → Desnutrição trava o teto de Stamina em 65% e drena saúde!',
+      staminaCapExhaustion: (maxStamina) => `Exaustão acumulada: teto de Stamina limitado a ${maxStamina}% até descansar e comer no Habitat.`,
+    },
+    nightlyDominoEffects: {
+      panelDustPenalty: (dustPct, solarGenerated) => `Poeira (${dustPct}%) derrubou geração solar para apenas +${solarGenerated}%.`,
+      powerSavePenalty: 'Modo Economia noturno causou frio na cabine (-4% Saúde, -10% Stamina).',
+      starvationPenalty: 'Sem rações disponíveis → Fome severa (-22% Saúde e Stamina máxima travada em 65%).',
+      untrainedPenalty: 'Sem treino físico no Sol → Perda de tônus (-8% Saúde e -10% Stamina máxima).',
+      unprotectedStormPenalty: (weatherTitle, energyLoss, healthLoss) =>
+        `Sem proteção no Abrigo em "${weatherTitle}" → Dano severo (-${energyLoss}% Energia, -${healthLoss}% Saúde).`,
+      greenhouseCrashWithFood: 'Energia < 30% → Resfriamento da Estufa estragou -1 Ração e derrubou O₂ (-8% Saúde).',
+      greenhouseCrashNoFood: 'Energia < 30% → Estufa despressurizada derrubou O₂ (-8% Saúde).',
+      dehydrationPenalty: 'Água < 25% → Desidratação reduziu Saúde (-10%) e teto de Stamina (-15%).',
+    },
+    dailyLog: {
+      exerciseDone: (count) => `Treino gravitacional concluído (${count} ${count > 1 ? 'exercícios' : 'exercício'})`,
+      exercisePending: 'Nenhum exercício realizado hoje — queda de condicionamento',
+      mealBalanced: (kcal, items) =>
+        items ? `Refeição balanceada: ${kcal} kcal (${items})` : `Refeição balanceada: ${kcal} kcal`,
+      mealNightRation: 'Ração básica consumida no descanso (480 kcal)',
+      mealMissing: 'Sem alimentação hoje — déficit energético',
+      hydrationDone: (ml, waterPct) => `${ml} ml ingeridos • Reservatório em ${waterPct}%`,
+      hydrationNightFallback: (waterPct) => `Sem hidratação guiada hoje • Reservatório em ${waterPct}%`,
+      hydrationInsufficient: 'Hidratação insuficiente hoje',
+      hygieneDone: 'Ambiente, mãos e luvas esterilizados',
+      hygienePending: 'Higiene pendente — acúmulo de poeira',
+      stationOpHabitat: (parts) => `Habitat & Saúde: ${parts.length > 0 ? parts.join(' • ') : 'descanso operacional'}`,
+      habitatPartExercise: 'treino concluído',
+      habitatPartKcal: (kcal) => `${kcal} kcal`,
+      habitatPartHydrate: (ml) => `${ml} ml água`,
+      habitatPartHygiene: 'higiene esterilizada',
+      habitatPartRest: 'descanso operacional',
+    },
+    stationOps: {
+      MISSION_1: 'Painéis Solares limpos (0% poeira) • +12% Energia recuperada',
+      MISSION_3: 'Perfuração a 2,2 m & filtro UV: +26% Água Potável extraída',
+      MISSION_4: 'Estufa ECLSS: névoa nutritiva e colheita (+2 Rações, +8% O₂/Saúde)',
+      MISSION_5: 'Abrigo & Comunicações: base selada contra tempestade e radiação',
+    },
+    notices: {
+      initial: 'Sobrevivência extrema iniciada: 4 Turnos por Sol não permitem fazer tudo — priorize energia, água e comida sob risco de cascata!',
+      zeroTurnsLeft: 'Turnos do Sol esgotados (0/4)! Vá dormir para fechar o balanço diário e avançar ao próximo Sol.',
+      insufficientStamina: (stationTitle, cost, current) =>
+        `Stamina insuficiente para operar ${stationTitle}! Precisa de ${cost}% (atual: ${current}%). Alimente-se no Habitat!`,
+      insufficientWater: (stationTitle, minWater, current) =>
+        `Água insuficiente para operar ${stationTitle}! Precisa de ${minWater}% no reservatório (atual: ${current}%). Perfure gelo na Estação 3!`,
+      insufficientEnergy: (stationTitle, minEnergy, current) =>
+        `Energia baixa demais para operar ${stationTitle}! Precisa de ${minEnergy}% (atual: ${current}%). Limpe os painéis na Estação 1!`,
+      stationComplete: {
+        MISSION_1: 'Painéis Solares limpos (0% poeira)! +12% Energia recuperada (-20% Stamina).',
+        MISSION_2_HYDRATION: 'Turno no Habitat sem ração no estoque: +8% Saúde e +18% Stamina! Priorize a Estufa!',
+        MISSION_2_FULL: (maxStamina) => `Turno no Habitat concluído! +22% Saúde, +35% Stamina (Teto: ${maxStamina}%).`,
+        MISSION_3: 'Perfuração a 2,2 m e filtro UV concluídos! +26% Água Potável (-14% Energia, -30% Stamina).',
+        MISSION_4: 'Colheita ECLSS concluída! +2 Rações estocadas e +8% Saúde (-16% Água, -10% Energia).',
+        MISSION_5: 'Protocolo de Abrigo & Vedação ativado (-8% Energia)! Base protegida neste Sol.',
+      },
+      crisisStarted: (title) => `EMERGÊNCIA SÚBITA: ${title}! Resolva antes que o tempo acabe!`,
+      crisisContained: (title) => `Emergência contida a tempo (${title})! +30 pts científicos e base preservada.`,
+      crisisTimeout: (title, penaltySummary) => `FALHA NA CRISE (${title}): ${penaltySummary}!`,
+      victory: 'Parabéns! Você sobreviveu todos os 30 Sols extremos em Arcadia Planitia!',
+      sleepCycleDone: (sol, shortBadge, isCritical, stormProtected) =>
+        `Sol ${sol} encerrado (${shortBadge}). ${isCritical && !stormProtected ? 'Dano climático noturno aplicado!' : 'Base avançou para o amanhecer!'}`,
+      syncCompleted: (sol) => `Relatório real do Sol ${sol} enviado com sucesso para a Central Terrestre!`,
+      syncQueued: 'Dados salvos no servidor da nave. Aguardando janela de comunicação com a Terra.',
+    },
+    nightlySummary: {
+      tense: (completedSol, firstDominoEffect) => `Sol ${completedSol} tenso! ${firstDominoEffect}`,
+      survivedCritical: (completedSol, weatherTitle) =>
+        `Superamos "${weatherTitle}" no Sol ${completedSol}, comandante! Continue racionando os 4 turnos!`,
+      standard: (completedSol, solarGenerated, energyConsumed, waterConsumed) =>
+        `Sol ${completedSol} encerrado (+${solarGenerated}% Solar / -${energyConsumed}% Energia / -${waterConsumed}% Água).`,
+    },
+    baseHub: {
+      expeditionBadge: (sol) => `EXPEDIÇÃO REAL: 30 SOLS • SOL ${sol}/30`,
+      turnsOfSol: 'Turnos do Sol',
+      physicalStamina: 'Stamina Física',
+      staminaMaxLabel: (max) => `(Máx ${max}%)`,
+      panelDust: 'Poeira nos Painéis',
+      weatherToday: 'Clima Hoje',
+      earlyWarning: (nextSol, title, advice) => `AVISO SOL ${nextSol}: ${title} — ${advice}`,
+      cascadeTitle: 'ALERTA DE CASCATA ATIVO:',
+      sleepBtn: '🌙 Dormir & Fechar Sol',
+      lastActionPrefix: 'Última Ação:',
+      capiTurnZero: (sol) => `Turnos do Sol ${sol} esgotados (0/4)! Hora de dormir, salvar os dados na Terra e avançar para o próximo amanhecer em Arcadia.`,
+      capiMain: (sol, turnsLeft, dustPct, shortBadge) => `Sol ${sol}/30 • ${turnsLeft} turno(s) restante(s) • Poeira solar em ${dustPct}% • Clima: ${shortBadge}.`,
+      capiCascadeWarning: (count) => `⚠️ ATENÇÃO (${count} alerta(s) de cascata)! Resolva o clima/recursos críticos agora!`,
+      cartridgesTitle: 'Cartuchos da Expedição (5 Missões)',
+      cartridgesDesc: 'No Modo Sobrevivência, todas as 5 estações estão liberadas desde o Sol 1/30!',
+      cartridgeCostPrefix: 'Custo:',
+      availableNow: 'DISPONÍVEL AGORA',
+      mission1Sub: 'Site ESP_046254_2170 & 480 W',
+      mission2Sub: 'Exercícios, Kcal, Água & Higiene',
+      mission3Sub: 'Sonda SHARAD, Broca & Potabilidade',
+      mission4Sub: 'Hidroponia/Aeroponia, Solo & O2',
+      mission5Sub: 'Poeira, Limpeza & Abrigo Blindado',
+    },
+    stationBanner: {
+      badgeTitle: (sol) => `MODO SOBREVIVÊNCIA • SOL ${sol}/30`,
+      turnsLabel: 'TURNOS:',
+      weatherLabel: 'Clima:',
+      completeDefaultBtn: 'Concluir Operação',
+      costPrefix: 'Custo:',
+      rewardPrefix: 'Recompensa:',
+    },
+    missionActions: {
+      m1Badge: 'MISSÃO 1 • ARCADIA SOLAR',
+      m1Title: 'GERENCIAMENTO SOLAR DE ARCADIA',
+      m1TabSite: '1.1 Local & Mapa',
+      m1TabCalc: '1.2 Montagem 480 W',
+      m1TabTest: '1.3 Poeira & Teste',
+      m1LockAlert: 'Conclua o desafio anterior para liberar esta etapa da Missão 1!',
+      m1SurvivalCardTitle: (sol) => `MANUTENÇÃO SOLAR REAL — SOL ${sol}/30`,
+      m1SurvivalDustLabel: 'Poeira atual na base:',
+      m1SurvivalReadyDesc: 'Painel solar limpo e calibrado! Conclua a manutenção para zerar a poeira acumulada na base e recuperar +12% de Energia.',
+      m1SurvivalPendingDesc: 'Esfregue toda a poeira sobre o painel acima até atingir 90%+ para liberar o registro de manutenção.',
+      m1SurvivalBtn: '☀️ Concluir Manutenção Solar (-1 Turno • -20% Stamina • +12% Energia) ▶',
+      m2Badge: 'MISSÃO 2 • HABITAT HUMANO',
+      m2Title: 'CUIDANDO DO ASTRONAUTA',
+      m2TabExercise: '2.1 Exercício',
+      m2TabNutrition: '2.2 Refeição & Água',
+      m2TabHygiene: '2.3 Higiene',
+      m2TabSleep: '2.4 Sono & Capi',
+      m2LockAlert: 'Conclua a etapa anterior dentro do Habitat antes de avançar!',
+      m2HygieneFallback: 'Ambiente, mãos e luvas esterilizados',
+      m2HydrationOnlyBtn: '💧 Salvar Hidratação (0 Rações) & Ir para Higiene (2.3) ▶',
+      m2HydrationNeedWater: '0 rações disponíveis — Dose água (300–400 ml) para hidratar',
+      m2HydrationQuickTurnBtn: '✅ Hidratar & Concluir Turno Agora (-1 Turno • +8% Saúde) ▶',
+      m2StockEmptyBtn: 'Estoque zerado (0 rações) — Use a Estufa (Estação 4) ou Hidrate acima',
+      m2MealStepBtn: (kcal) => `🥗 Registrar Refeição (${kcal} kcal) & Ir para Higiene (2.3) ▶`,
+      m2MealQuickTurnBtn: '✅ Concluir Turno no Habitat Agora (Sem Higiene • -1 Turno • +22% Saúde • +35% Stamina) ▶',
+      m2HygieneTitle: 'Esterilizar Equipamentos e Bancadas',
+      m2HygieneDone: 'Poeira marciana removida com sucesso',
+      m2HygienePending: 'Use o módulo de limpeza ao lado (esfregar 90%+)',
+      m2HygieneCompleteBtn: '🧼 Concluir Esterilização & Encerrar Turno (-1 Turno) ▶',
+      m2HygieneProgressBtn: (done) => `Realize as 3 etapas de higiene (${done}/3)`,
+      m3Badge: 'MISSÃO 3 • ARCADIA NORTE',
+      m3Title: 'O MISTÉRIO DO GELO DE MARTE',
+      m3TabOrbital: '3.1-3.2 Radar Orbital',
+      m3TabDrill: '3.3-3.4 Perfuração',
+      m3TabLab: '3.5 Laboratório de Água',
+      m3LockAlert: 'Conclua a etapa anterior do radar/perfuração para desbloquear este módulo!',
+      m3SurvivalBtn: '💧 Abastecer Base (+26% Água Potável • -1 Turno) ▶',
+      m4Badge: 'MISSÃO 4 • ESTUFA DE MARTE',
+      m4Title: 'A PRIMEIRA ESTUFA DE MARTE',
+      m4TabMethod: '4.1 Método',
+      m4TabSoil: '4.2 Solo vs H₂O',
+      m4TabPlants: '4.3 Plantas',
+      m4TabGrowth: '4.4 Cultivo & O₂',
+      m4TabBioreg: '4.5 Biorregenerativo',
+      m4LockAlert: 'Conclua o desafio anterior da Estufa para liberar esta etapa!',
+      m4SurvivalBtn: '🌱 Colher & Armazenar (+2 Rações • +8% Saúde • -1 Turno) ▶',
+      m5Badge: 'MISSÃO 5 • EMERGÊNCIAS EM MARTE',
+      m5Title: 'ALERTA! TEMPESTADES EM MARTE',
+      m5TabDust: '5.1 Tempestade Poeira',
+      m5TabSolar: '5.2 Painéis 480 W',
+      m5TabShelter: '5.3 Radiação Solar',
+      m5TabInspect: '5.4 Inspeção Final',
+      m5LockAlert: 'Conclua o protocolo de segurança anterior para avançar!',
+      m5DustReadyBtn: '🛡️ Ativar Proteção da Base (-1 Turno • -15% Stamina) ▶',
+      m5DustPendingBtn: (done) => `Arraste as 4 escotilhas até VEDADO (${done}/4)`,
+      m5ShelterReadyBtn: '🛡️ Ativar Proteção da Base (-1 Turno • -15% Stamina) ▶',
+      m5ShelterPendingBtn: 'Guie o astronauta até a porta do Abrigo Blindado ▶',
+    },
   },
 };

@@ -1,6 +1,7 @@
 import {
   getSolWeather,
   type SolWeatherInfo,
+  type SurvivalWeatherType,
 } from './weatherScheduler';
 
 export type GameMode = 'TRAINING' | 'SURVIVAL_30';
@@ -14,10 +15,69 @@ export type SurvivalStationId =
 
 export type SurvivalStatus = 'PLAYING' | 'GAME_OVER' | 'VICTORY';
 
+export type SurvivalFailureCause = 'ENERGY' | 'WATER' | 'HEALTH';
+
 export type CrisisType =
   | 'SOLAR_PROTON_SPIKE'
   | 'HABITAT_MICRO_LEAK'
   | 'PANEL_SHORT_CIRCUIT';
+
+export type StationOpDescriptor =
+  | { station: 'MISSION_1' | 'MISSION_3' | 'MISSION_4' | 'MISSION_5' }
+  | {
+      station: 'MISSION_2';
+      exercised: boolean;
+      ateMeal: boolean;
+      mealKcal: number;
+      hydratedToday: boolean;
+      hydrationMl: number;
+      hygieneCompleted: boolean;
+    };
+
+export type NightlyDominoDescriptor =
+  | { code: 'PANEL_DUST'; dustPct: number; solarGenerated: number }
+  | { code: 'POWER_SAVE' }
+  | { code: 'STARVATION' }
+  | { code: 'UNTRAINED' }
+  | {
+      code: 'UNPROTECTED_STORM';
+      weatherType: SurvivalWeatherType;
+      energyLoss: number;
+      healthLoss: number;
+    }
+  | { code: 'GREENHOUSE_CRASH_FOOD' }
+  | { code: 'GREENHOUSE_CRASH_NO_FOOD' }
+  | { code: 'DEHYDRATION' };
+
+export type SurvivalNoticeDescriptor =
+  | { kind: 'INITIAL' }
+  | { kind: 'ZERO_TURNS_LEFT' }
+  | { kind: 'INSUFFICIENT_STAMINA'; station: SurvivalStationId; cost: number; current: number }
+  | { kind: 'INSUFFICIENT_WATER'; station: SurvivalStationId; minWater: number; current: number }
+  | { kind: 'INSUFFICIENT_ENERGY'; station: SurvivalStationId; minEnergy: number; current: number }
+  | {
+      kind: 'STATION_COMPLETE';
+      station: SurvivalStationId;
+      hasFood?: boolean;
+      maxStamina?: number;
+    }
+  | { kind: 'CRISIS_STARTED'; crisisType: CrisisType }
+  | { kind: 'CRISIS_CONTAINED'; crisisType: CrisisType }
+  | { kind: 'CRISIS_TIMEOUT'; crisisType: CrisisType }
+  | { kind: 'VICTORY' }
+  | { kind: 'FAILURE'; cause: SurvivalFailureCause; sol: number }
+  | {
+      kind: 'NIGHTLY_REPORT';
+      report: {
+        completedSol: number;
+        weatherType: SurvivalWeatherType;
+        solarGenerated: number;
+        energyConsumed: number;
+        waterConsumed: number;
+        stormPenaltyApplied: boolean;
+        dominoEffectDescriptors: NightlyDominoDescriptor[];
+      };
+    };
 
 export interface ActiveSurvivalCrisis {
   id: string;
@@ -39,13 +99,17 @@ export interface SurvivalDailyLog {
   exerciseSummary: string;
   ateMeal: boolean;
   mealKcal: number;
+  mealItems?: string[];
+  nightRationFallback?: boolean;
   mealSummary: string;
   hydratedToday: boolean;
   hydrationMl: number;
+  hydrationWaterAfter?: number;
   hydrationSummary: string;
   hygieneCompleted: boolean;
   hygieneSummary: string;
   stationOperations: string[];
+  stationOpRecords?: StationOpDescriptor[];
 }
 
 export interface SurvivalActionDetails {
@@ -54,8 +118,10 @@ export interface SurvivalActionDetails {
   exerciseSummary?: string;
   ateMeal?: boolean;
   mealKcal?: number;
+  mealItems?: string[];
   mealSummary?: string;
   hydrationMl?: number;
+  hydrationWaterAfter?: number;
   hydrationSummary?: string;
   hygieneCompleted?: boolean;
   hygieneSummary?: string;
@@ -69,6 +135,8 @@ export function createEmptyDailyLog(): SurvivalDailyLog {
     exerciseSummary: 'Nenhum exercício realizado hoje — queda de condicionamento',
     ateMeal: false,
     mealKcal: 0,
+    mealItems: [],
+    nightRationFallback: false,
     mealSummary: 'Sem alimentação hoje — déficit energético',
     hydratedToday: false,
     hydrationMl: 0,
@@ -76,6 +144,7 @@ export function createEmptyDailyLog(): SurvivalDailyLog {
     hygieneCompleted: false,
     hygieneSummary: 'Higiene pendente — acúmulo de poeira',
     stationOperations: [],
+    stationOpRecords: [],
   };
 }
 
@@ -108,6 +177,8 @@ export interface NightlyReportSummary {
   starvationApplied: boolean;
   untrainedPenaltyApplied: boolean;
   dominoEffects: string[];
+  dominoEffectDescriptors?: NightlyDominoDescriptor[];
+  powerSaveTriggered?: boolean;
   maxStaminaNextSol: number;
   resultingEnergy: number;
   resultingWater: number;
@@ -135,11 +206,13 @@ export interface Survival30State {
   activeCrisis: ActiveSurvivalCrisis | null;
   gameStatus: SurvivalStatus;
   gameOverReason: string | null;
+  gameOverCause?: SurvivalFailureCause | null;
   gameOverSol: number | null;
   stats: SurvivalStats;
   dailyLog: SurvivalDailyLog;
   lastNightlyReport: NightlyReportSummary | null;
   lastActionNotice: string | null;
+  lastNoticeDescriptor?: SurvivalNoticeDescriptor | null;
 }
 
 export interface SurvivalStationRule {
@@ -260,6 +333,7 @@ export function createInitialSurvival30State(): Survival30State {
     activeCrisis: null,
     gameStatus: 'PLAYING',
     gameOverReason: null,
+    gameOverCause: null,
     gameOverSol: null,
     stats: {
       totalWaterExtracted: 0,
@@ -280,11 +354,23 @@ export function createInitialSurvival30State(): Survival30State {
     lastNightlyReport: null,
     lastActionNotice:
       'Sobrevivência extrema iniciada: 4 Turnos por Sol não permitem fazer tudo — priorize energia, água e comida sob risco de cascata!',
+    lastNoticeDescriptor: { kind: 'INITIAL' },
   };
 }
 
 export function clampPct(val: number, max = 100): number {
   return Math.max(0, Math.min(max, Math.round(val)));
+}
+
+export function detectResourceFailureCause(
+  energy: number,
+  water: number,
+  health: number
+): SurvivalFailureCause | null {
+  if (energy <= 0) return 'ENERGY';
+  if (water <= 0) return 'WATER';
+  if (health <= 0) return 'HEALTH';
+  return null;
 }
 
 export function detectResourceFailure(
@@ -328,9 +414,12 @@ export function applySurvivalStationCompletion(
   const dailyLog: SurvivalDailyLog = {
     ...createEmptyDailyLog(),
     ...prev.dailyLog,
+    mealItems: [...(prev.dailyLog?.mealItems ?? [])],
     stationOperations: [...(prev.dailyLog?.stationOperations ?? [])],
+    stationOpRecords: [...(prev.dailyLog?.stationOpRecords ?? [])],
   };
   let notice = '';
+  let lastNoticeDescriptor: SurvivalNoticeDescriptor | null = null;
 
   switch (station) {
     case 'MISSION_1': {
@@ -350,7 +439,12 @@ export function applySurvivalStationCompletion(
       dailyLog.stationOperations.push(
         details?.operationSummary || 'Painéis Solares limpos (0% poeira) • +12% Energia recuperada'
       );
+      dailyLog.stationOpRecords = [
+        ...(dailyLog.stationOpRecords ?? []),
+        { station: 'MISSION_1' },
+      ];
       notice = 'Painéis Solares limpos (0% poeira)! +12% Energia recuperada (-20% Stamina).';
+      lastNoticeDescriptor = { kind: 'STATION_COMPLETE', station: 'MISSION_1' };
       break;
     }
     case 'MISSION_2': {
@@ -376,6 +470,10 @@ export function applySurvivalStationCompletion(
             : 740;
         dailyLog.ateMeal = true;
         dailyLog.mealKcal = mealKcal;
+        dailyLog.nightRationFallback = false;
+        if (details?.mealItems && details.mealItems.length > 0) {
+          dailyLog.mealItems = details.mealItems;
+        }
         dailyLog.mealSummary =
           details?.mealSummary || `Refeição balanceada: ${mealKcal} kcal`;
         stats.totalMealsConsumed = (stats.totalMealsConsumed ?? 0) + 1;
@@ -383,6 +481,8 @@ export function applySurvivalStationCompletion(
       } else {
         dailyLog.ateMeal = false;
         dailyLog.mealKcal = 0;
+        dailyLog.mealItems = [];
+        dailyLog.nightRationFallback = false;
         dailyLog.mealSummary = 'Sem ração no estoque — déficit energético';
       }
 
@@ -400,6 +500,7 @@ export function applySurvivalStationCompletion(
       if (resolvedMl > 0) {
         dailyLog.hydratedToday = true;
         dailyLog.hydrationMl = resolvedMl;
+        dailyLog.hydrationWaterAfter = water;
         dailyLog.hydrationSummary =
           details?.hydrationSummary ||
           `${resolvedMl} ml ingeridos • Reservatório em ${water}%`;
@@ -422,6 +523,18 @@ export function applySurvivalStationCompletion(
         details?.operationSummary ||
           `Habitat & Saúde: ${opsParts.length > 0 ? opsParts.join(' • ') : 'descanso operacional'}`
       );
+      dailyLog.stationOpRecords = [
+        ...(dailyLog.stationOpRecords ?? []),
+        {
+          station: 'MISSION_2',
+          exercised: dailyLog.exercised,
+          ateMeal: dailyLog.ateMeal,
+          mealKcal: dailyLog.mealKcal,
+          hydratedToday: dailyLog.hydratedToday,
+          hydrationMl: dailyLog.hydrationMl,
+          hygieneCompleted: dailyLog.hygieneCompleted,
+        },
+      ];
 
       stats = {
         ...stats,
@@ -430,6 +543,12 @@ export function applySurvivalStationCompletion(
       notice = hasFood
         ? `Turno no Habitat concluído! +22% Saúde, +35% Stamina (Teto: ${maxStamina}%).`
         : 'Turno no Habitat sem ração no estoque: +8% Saúde e +18% Stamina! Priorize a Estufa!';
+      lastNoticeDescriptor = {
+        kind: 'STATION_COMPLETE',
+        station: 'MISSION_2',
+        hasFood,
+        maxStamina,
+      };
       break;
     }
     case 'MISSION_3': {
@@ -445,8 +564,13 @@ export function applySurvivalStationCompletion(
         details?.operationSummary ||
           'Perfuração a 2,2 m & filtro UV: +26% Água Potável extraída'
       );
+      dailyLog.stationOpRecords = [
+        ...(dailyLog.stationOpRecords ?? []),
+        { station: 'MISSION_3' },
+      ];
       notice =
         'Perfuração a 2,2 m e filtro UV concluídos! +26% Água Potável (-14% Energia, -30% Stamina).';
+      lastNoticeDescriptor = { kind: 'STATION_COMPLETE', station: 'MISSION_3' };
       break;
     }
     case 'MISSION_4': {
@@ -465,8 +589,13 @@ export function applySurvivalStationCompletion(
         details?.operationSummary ||
           'Estufa ECLSS: névoa nutritiva e colheita (+2 Rações, +8% O₂/Saúde)'
       );
+      dailyLog.stationOpRecords = [
+        ...(dailyLog.stationOpRecords ?? []),
+        { station: 'MISSION_4' },
+      ];
       notice =
         'Colheita ECLSS concluída! +2 Rações estocadas e +8% Saúde (-16% Água, -10% Energia).';
+      lastNoticeDescriptor = { kind: 'STATION_COMPLETE', station: 'MISSION_4' };
       break;
     }
     case 'MISSION_5': {
@@ -491,14 +620,20 @@ export function applySurvivalStationCompletion(
         details?.operationSummary ||
           'Abrigo & Comunicações: base selada contra tempestade e radiação'
       );
+      dailyLog.stationOpRecords = [
+        ...(dailyLog.stationOpRecords ?? []),
+        { station: 'MISSION_5' },
+      ];
       notice =
         'Protocolo de Abrigo & Vedação ativado (-8% Energia)! Base protegida neste Sol.';
+      lastNoticeDescriptor = { kind: 'STATION_COMPLETE', station: 'MISSION_5' };
       break;
     }
   }
 
   greenhouseInRisk = energy < 30 || water < 25;
   const nextTurns = Math.max(0, prev.turnsLeft - 1);
+  const failureCause = detectResourceFailureCause(energy, water, health);
   const failureReason = detectResourceFailure(energy, water, health, prev.sol);
   const dominoAlerts = computeDominoAlerts({
     energy,
@@ -527,9 +662,13 @@ export function applySurvivalStationCompletion(
     dailyLog,
     gameStatus: failureReason ? 'GAME_OVER' : prev.gameStatus,
     gameOverReason: failureReason,
+    gameOverCause: failureCause,
     gameOverSol: failureReason ? prev.sol : null,
     stats,
-    lastActionNotice: notice,
+    lastActionNotice: failureReason ?? notice,
+    lastNoticeDescriptor: failureCause
+      ? { kind: 'FAILURE', cause: failureCause, sol: prev.sol }
+      : lastNoticeDescriptor,
   };
 }
 
@@ -608,6 +747,7 @@ export function stepSurvivalCrisisProgress(prev: Survival30State): Survival30Sta
   }
 
   const resolvedTitle = prev.activeCrisis.title;
+  const resolvedType = prev.activeCrisis.type;
   return {
     ...prev,
     activeCrisis: null,
@@ -617,6 +757,7 @@ export function stepSurvivalCrisisProgress(prev: Survival30State): Survival30Sta
       scienceScore: prev.stats.scienceScore + 30,
     },
     lastActionNotice: `Emergência contida a tempo (${resolvedTitle})! +30 pts científicos e base preservada.`,
+    lastNoticeDescriptor: { kind: 'CRISIS_CONTAINED', crisisType: resolvedType },
   };
 }
 
@@ -630,6 +771,7 @@ export function resolveSurvivalCrisisTimeout(prev: Survival30State): Survival30S
   let maxStamina = prev.maxStamina;
   let panelDustPct = prev.panelDustPct;
   const failedTitle = prev.activeCrisis.title;
+  const failedType = prev.activeCrisis.type;
 
   switch (prev.activeCrisis.type) {
     case 'SOLAR_PROTON_SPIKE': {
@@ -651,6 +793,7 @@ export function resolveSurvivalCrisisTimeout(prev: Survival30State): Survival30S
   }
 
   const greenhouseInRisk = energy < 30 || water < 25;
+  const failureCause = detectResourceFailureCause(energy, water, health);
   const failureReason = detectResourceFailure(energy, water, health, prev.sol);
   const dominoAlerts = computeDominoAlerts({
     energy,
@@ -674,12 +817,16 @@ export function resolveSurvivalCrisisTimeout(prev: Survival30State): Survival30S
     activeCrisis: null,
     gameStatus: failureReason ? 'GAME_OVER' : prev.gameStatus,
     gameOverReason: failureReason,
+    gameOverCause: failureCause,
     gameOverSol: failureReason ? prev.sol : null,
     stats: {
       ...prev.stats,
       crisesFailed: prev.stats.crisesFailed + 1,
     },
-    lastActionNotice: `FALHA NA CRISE (${failedTitle}): ${prev.activeCrisis.penaltySummary}!`,
+    lastActionNotice: failureReason ?? `FALHA NA CRISE (${failedTitle}): ${prev.activeCrisis.penaltySummary}!`,
+    lastNoticeDescriptor: failureCause
+      ? { kind: 'FAILURE', cause: failureCause, sol: prev.sol }
+      : { kind: 'CRISIS_TIMEOUT', crisisType: failedType },
   };
 }
 
@@ -710,11 +857,17 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
   let nextFood = Math.max(0, prev.foodRations - foodConsumed);
   let nextMaxStamina = 100;
   const dominoEffects: string[] = [];
+  const dominoEffectDescriptors: NightlyDominoDescriptor[] = [];
 
   if (prev.panelDustPct >= 50) {
     dominoEffects.push(
       `Poeira (${prev.panelDustPct}%) derrubou geração solar para apenas +${solarGenerated}%.`
     );
+    dominoEffectDescriptors.push({
+      code: 'PANEL_DUST',
+      dustPct: prev.panelDustPct,
+      solarGenerated,
+    });
   }
 
   // Modo economia noturno economiza energia, mas reduz aquecimento e descanso
@@ -722,6 +875,7 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
     healthDelta -= 4;
     nextMaxStamina -= 10;
     dominoEffects.push('Modo Economia noturno causou frio na cabine (-4% Saúde, -10% Stamina).');
+    dominoEffectDescriptors.push({ code: 'POWER_SAVE' });
   }
 
   // Efeito Dominó 2: Falta de comida derruba saúde e teto de Stamina do próximo Sol
@@ -729,6 +883,7 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
     healthDelta -= 22;
     nextMaxStamina = Math.min(nextMaxStamina, 65);
     dominoEffects.push('Sem rações disponíveis → Fome severa (-22% Saúde e Stamina máxima travada em 65%).');
+    dominoEffectDescriptors.push({ code: 'STARVATION' });
   }
 
   // Sem treino no Sol → atrofia por 0,38g
@@ -736,16 +891,24 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
     healthDelta -= 8;
     nextMaxStamina = Math.max(60, nextMaxStamina - 10);
     dominoEffects.push('Sem treino físico no Sol → Perda de tônus (-8% Saúde e -10% Stamina máxima).');
+    dominoEffectDescriptors.push({ code: 'UNTRAINED' });
   }
 
   // Efeito Dominó 3: Tempestades sem abrigo
   const stormPenaltyApplied = weather.isCritical && !prev.stormProtectedToday;
   if (stormPenaltyApplied) {
     extraEnergyLoss = weather.type === 'GLOBAL_DUST_STORM' ? 32 : 24;
-    healthDelta -= weather.type === 'SOLAR_RADIATION_FLARE' ? 35 : 28;
+    const stormHealthLoss = weather.type === 'SOLAR_RADIATION_FLARE' ? 35 : 28;
+    healthDelta -= stormHealthLoss;
     dominoEffects.push(
-      `Sem proteção no Abrigo em "${weather.title}" → Dano severo (-${extraEnergyLoss}% Energia, -${weather.type === 'SOLAR_RADIATION_FLARE' ? 35 : 28}% Saúde).`
+      `Sem proteção no Abrigo em "${weather.title}" → Dano severo (-${extraEnergyLoss}% Energia, -${stormHealthLoss}% Saúde).`
     );
+    dominoEffectDescriptors.push({
+      code: 'UNPROTECTED_STORM',
+      weatherType: weather.type,
+      energyLoss: extraEnergyLoss,
+      healthLoss: stormHealthLoss,
+    });
   }
 
   const nextEnergy = clampPct(prev.energy + solarGenerated - energyConsumed - extraEnergyLoss);
@@ -760,8 +923,10 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
       dominoEffects.push(
         'Energia < 30% → Resfriamento da Estufa estragou -1 Ração e derrubou O₂ (-8% Saúde).'
       );
+      dominoEffectDescriptors.push({ code: 'GREENHOUSE_CRASH_FOOD' });
     } else {
       dominoEffects.push('Energia < 30% → Estufa despressurizada derrubou O₂ (-8% Saúde).');
+      dominoEffectDescriptors.push({ code: 'GREENHOUSE_CRASH_NO_FOOD' });
     }
   }
 
@@ -770,6 +935,7 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
     healthDelta -= 10;
     nextMaxStamina = Math.max(55, nextMaxStamina - 15);
     dominoEffects.push('Água < 25% → Desidratação reduziu Saúde (-10%) e teto de Stamina (-15%).');
+    dominoEffectDescriptors.push({ code: 'DEHYDRATION' });
   }
 
   const nextHealth = clampPct(prev.health + healthDelta);
@@ -784,10 +950,14 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
   const prevLog: SurvivalDailyLog = {
     ...createEmptyDailyLog(),
     ...prev.dailyLog,
+    mealItems: [...(prev.dailyLog?.mealItems ?? [])],
     stationOperations: [...(prev.dailyLog?.stationOperations ?? [])],
+    stationOpRecords: [...(prev.dailyLog?.stationOpRecords ?? [])],
   };
   const dailyLogSnapshot: SurvivalDailyLog = {
     ...prevLog,
+    nightRationFallback: !prevLog.ateMeal && hasFood,
+    hydrationWaterAfter: nextWater,
     mealSummary: prevLog.ateMeal
       ? prevLog.mealSummary
       : hasFood
@@ -812,6 +982,7 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
       (prev.stats.daysHygieneCompleted ?? 0) + (prevLog.hygieneCompleted ? 1 : 0),
   };
 
+  const failureCause = detectResourceFailureCause(nextEnergy, nextWater, nextHealth);
   const failureReason = detectResourceFailure(nextEnergy, nextWater, nextHealth, prev.sol);
   const nextDominoAlerts = computeDominoAlerts({
     energy: nextEnergy,
@@ -843,6 +1014,8 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
     starvationApplied: !hasFood,
     untrainedPenaltyApplied: !prev.trainedToday,
     dominoEffects,
+    dominoEffectDescriptors,
+    powerSaveTriggered: prev.powerSaveActive,
     maxStaminaNextSol: nextMaxStamina,
     resultingEnergy: nextEnergy,
     resultingWater: nextWater,
@@ -851,6 +1024,21 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
     capiSummary,
     dailyLogSnapshot,
   };
+
+  const nightlyNoticeDescriptor: SurvivalNoticeDescriptor = failureCause
+    ? { kind: 'FAILURE', cause: failureCause, sol: prev.sol }
+    : {
+        kind: 'NIGHTLY_REPORT',
+        report: {
+          completedSol: prev.sol,
+          weatherType: weather.type,
+          solarGenerated,
+          energyConsumed: energyConsumed + extraEnergyLoss,
+          waterConsumed,
+          stormPenaltyApplied,
+          dominoEffectDescriptors,
+        },
+      };
 
   if (failureReason) {
     return {
@@ -868,9 +1056,11 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
       dailyLog: dailyLogSnapshot,
       gameStatus: 'GAME_OVER',
       gameOverReason: failureReason,
+      gameOverCause: failureCause,
       gameOverSol: prev.sol,
       lastNightlyReport: report,
       lastActionNotice: capiSummary,
+      lastNoticeDescriptor: nightlyNoticeDescriptor,
     };
   }
 
@@ -895,6 +1085,7 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
       dailyLog: dailyLogSnapshot,
       lastNightlyReport: report,
       lastActionNotice: 'Parabéns! Você sobreviveu todos os 30 Sols extremos em Arcadia Planitia!',
+      lastNoticeDescriptor: { kind: 'VICTORY' },
     };
   }
 
@@ -919,5 +1110,6 @@ export function resolveNightlySolTransition(prev: Survival30State): Survival30St
     dailyLog: createEmptyDailyLog(),
     lastNightlyReport: report,
     lastActionNotice: capiSummary,
+    lastNoticeDescriptor: nightlyNoticeDescriptor,
   };
 }

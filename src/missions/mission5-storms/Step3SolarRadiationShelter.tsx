@@ -38,7 +38,7 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
   onCapiFeedback,
 }) => {
   const { state, updateMission5 } = useGameStore();
-  const { tx } = useLanguage();
+  const { dict, tx } = useLanguage();
   const rad = state.mission5.radiationProtocol;
   const reachedShelter = Boolean(rad.enteredShieldedShelter && rad.riskReducedAndReleased);
 
@@ -426,8 +426,10 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
           >
             {reachedShelter
               ? state.gameMode === 'SURVIVAL_30'
-                ? '🛡️ Ativar Proteção da Base (-1 Turno • -10% Stamina) ▶'
+                ? dict.survival.missionActions.m5ShelterReadyBtn
                 : 'Risco Dissipado — Inspeção Pós-Tempestade (Desafio 5.4) ▶'
+              : state.gameMode === 'SURVIVAL_30'
+              ? dict.survival.missionActions.m5ShelterPendingBtn
               : 'Guie o astronauta até a porta do Abrigo Blindado ▶'}
           </button>
         </div>

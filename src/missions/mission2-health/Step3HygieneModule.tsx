@@ -4,6 +4,7 @@ import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { DustScrubCanvas } from '../../components/minigames/DustScrubCanvas';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface HygieneButtonAction {
   key: 'teeth' | 'hands';
@@ -39,6 +40,7 @@ export const Step3HygieneModule: React.FC<Step3HygieneModuleProps> = ({
   onCapiFeedback,
 }) => {
   const { state, updateMission2 } = useGameStore();
+  const { dict } = useLanguage();
   const tasks = state.mission2.hygieneTasks;
   const [scrubPct, setScrubPct] = useState(tasks.gear ? 100 : 0);
 
@@ -170,12 +172,12 @@ export const Step3HygieneModule: React.FC<Step3HygieneModuleProps> = ({
             >
               <div>
                 <p className="font-pixel text-[9px]">
-                  Esterilizar Equipamentos e Bancadas
+                  {dict.survival.missionActions.m2HygieneTitle}
                 </p>
                 <p className="mt-1 font-dialog text-xs text-slate-300">
                   {tasks.gear
-                    ? 'Poeira marciana removida com sucesso'
-                    : 'Use o módulo de limpeza ao lado (esfregar 90%+)'}
+                    ? dict.survival.missionActions.m2HygieneDone
+                    : dict.survival.missionActions.m2HygienePending}
                 </p>
               </div>
               <CheckCircle2
@@ -197,9 +199,9 @@ export const Step3HygieneModule: React.FC<Step3HygieneModuleProps> = ({
           >
             {allDone
               ? state.gameMode === 'SURVIVAL_30'
-                ? '🧼 Concluir Esterilização & Encerrar Turno (-1 Turno) ▶'
+                ? dict.survival.missionActions.m2HygieneCompleteBtn
                 : 'Ir para Cabine de Descanso (Desafio 2.4) ▶'
-              : `Realize as 3 etapas de higiene (${doneCount}/3)`}
+              : dict.survival.missionActions.m2HygieneProgressBtn(doneCount)}
           </button>
         </div>
       </div>

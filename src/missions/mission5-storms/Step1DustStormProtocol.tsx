@@ -13,6 +13,7 @@ import {
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 type HatchKey =
   | 'checkPanel'
@@ -73,6 +74,7 @@ export const Step1DustStormProtocol: React.FC<Step1DustStormProtocolProps> = ({
   onCapiFeedback,
 }) => {
   const { state, updateMission5, updateStats } = useGameStore();
+  const { dict } = useLanguage();
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const proto = state.mission5.dustProtocol;
 
@@ -388,8 +390,10 @@ export const Step1DustStormProtocol: React.FC<Step1DustStormProtocolProps> = ({
           >
             {allReady
               ? isSurvival
-                ? '🛡️ Ativar Proteção da Base (-1 Turno • -10% Stamina) ▶'
+                ? dict.survival.missionActions.m5DustReadyBtn
                 : 'Poeira Baixou — Limpar Painéis Solares (Desafio 5.2) ▶'
+              : isSurvival
+              ? dict.survival.missionActions.m5DustPendingBtn(doneCount)
               : `Arraste as 4 escotilhas até VEDADO (${doneCount}/4)`}
           </button>
         </div>

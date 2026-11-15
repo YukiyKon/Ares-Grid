@@ -17,6 +17,12 @@ import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
+import {
+  formatNightlyDominoEffect,
+  getLocalizedDailyLog,
+  getLocalizedNightlySummary,
+  getLocalizedWeather,
+} from '../../modes/survival30/survivalI18n';
 import { createEmptyDailyLog } from '../../modes/survival30/survivalTypes';
 import {
   getNextSolEarlyWarning,
@@ -32,7 +38,7 @@ interface SleepStep {
 
 export const SleepReportModal: React.FC = () => {
   const { state, openModal, completeSleepCycle } = useGameStore();
-  const { lang, tx, translateText } = useLanguage();
+  const { lang, dict, tx, translateText } = useLanguage();
   const [step, setStep] = useState(1);
   const [earthSignalAvailable, setEarthSignalAvailable] = useState(true);
   const [cycleFinished, setCycleFinished] = useState(false);
@@ -54,7 +60,7 @@ export const SleepReportModal: React.FC = () => {
   const nightlyReport = state.survival.lastNightlyReport;
   const nextWeather = isSurvival ? getSolWeather(state.survival.sol) : null;
   const nextWarning = isSurvival ? getNextSolEarlyWarning(state.survival.sol) : null;
-  const activeLog = isSurvival
+  const rawActiveLog = isSurvival
     ? step === 7 && nightlyReport?.dailyLogSnapshot
       ? nightlyReport.dailyLogSnapshot
       : {
@@ -63,10 +69,22 @@ export const SleepReportModal: React.FC = () => {
           stationOperations: [...(state.survival.dailyLog?.stationOperations ?? [])],
         }
     : null;
+  const activeLog = rawActiveLog
+    ? getLocalizedDailyLog(
+        rawActiveLog,
+        dict,
+        lang,
+        step === 7 && nightlyReport ? nightlyReport.resultingWater : state.survival.water
+      )
+    : null;
 
   const coldPowerSave =
     state.survival.powerSaveActive ||
-    Boolean(nightlyReport?.dominoEffects.some((d) => d.includes('Modo Economia')));
+    Boolean(
+      nightlyReport?.powerSaveTriggered ||
+        nightlyReport?.dominoEffectDescriptors?.some((d) => d.code === 'POWER_SAVE') ||
+        nightlyReport?.dominoEffects.some((d) => d.includes('Modo Economia'))
+    );
   const stormInterrupted = Boolean(nightlyReport?.stormPenaltyApplied);
   const sleepHoursReal = activeLog
     ? stormInterrupted
@@ -442,7 +460,7 @@ export const SleepReportModal: React.FC = () => {
                         <span className="font-bold text-slate-300">
                           {tx('Workouts (Habitat 2.1): ', 'Exercícios (Habitat 2.1): ')}
                         </span>
-                        <span className="text-slate-100">{translateText(activeLog.exerciseSummary)}</span>
+                        <span className="text-slate-100">{activeLog.exerciseSummary}</span>
                       </div>
                       <span
                         className={`shrink-0 rounded-xs px-1.5 py-0.5 text-[10px] font-bold ${
@@ -460,7 +478,7 @@ export const SleepReportModal: React.FC = () => {
                         <span className="font-bold text-slate-300">
                           {tx('Nutrition (Habitat 2.2): ', 'Alimentação (Habitat 2.2): ')}
                         </span>
-                        <span className="text-slate-100">{translateText(activeLog.mealSummary)}</span>
+                        <span className="text-slate-100">{activeLog.mealSummary}</span>
                       </div>
                       <span
                         className={`shrink-0 rounded-xs px-1.5 py-0.5 text-[10px] font-bold ${
@@ -478,7 +496,7 @@ export const SleepReportModal: React.FC = () => {
                         <span className="font-bold text-slate-300">
                           {tx('Hydration: ', 'Hidratação: ')}
                         </span>
-                        <span className="text-slate-100">{translateText(activeLog.hydrationSummary)}</span>
+                        <span className="text-slate-100">{activeLog.hydrationSummary}</span>
                       </div>
                       <span
                         className={`shrink-0 rounded-xs px-1.5 py-0.5 text-[10px] font-bold ${
@@ -496,7 +514,7 @@ export const SleepReportModal: React.FC = () => {
                         <span className="font-bold text-slate-300">
                           {tx('Hygiene (Habitat 2.3): ', 'Higiene (Habitat 2.3): ')}
                         </span>
-                        <span className="text-slate-100">{translateText(activeLog.hygieneSummary)}</span>
+                        <span className="text-slate-100">{activeLog.hygieneSummary}</span>
                       </div>
                       <span
                         className={`shrink-0 rounded-xs px-1.5 py-0.5 text-[10px] font-bold ${
@@ -520,7 +538,7 @@ export const SleepReportModal: React.FC = () => {
                     {activeLog.stationOperations.length > 0 ? (
                       <ul className="mt-1 space-y-1 text-[11px] text-slate-200">
                         {activeLog.stationOperations.map((op, idx) => (
-                          <li key={`${idx}-${op}`}>• {translateText(op)}</li>
+                          <li key={`${idx}-${op}`}>• {op}</li>
                         ))}
                       </ul>
                     ) : (
@@ -682,77 +700,141 @@ export const SleepReportModal: React.FC = () => {
 
                 {isSurvival && nightlyReport ? (
                   <div className="space-y-2 rounded-sm border border-amber-400/70 bg-amber-950/35 p-2.5 text-xs text-slate-100">
-                    <p className="font-pixel text-[9px] text-amber-300">
-                      {tx('NIGHTLY BALANCE', 'BALANÇO NOTURNO')} — {tx('SOL', 'SOL')} {nightlyReport.completedSol}/30 (
-                      {translateText(nightlyReport.weather.shortBadge)} • {translateText(nightlyReport.weather.title)})
-                    </p>
-                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                      <span className="rounded-sm bg-slate-900/90 px-2 py-1">
-                        ☀️ {tx('Solar:', 'Solar:')} <strong className="text-amber-300">+{nightlyReport.solarGenerated}%</strong> / -{nightlyReport.energyConsumed}%
-                      </span>
-                      <span className="rounded-sm bg-slate-900/90 px-2 py-1">
-                        💧 {tx('Water:', 'Água:')} <strong className="text-cyan-300">-{nightlyReport.waterConsumed}%</strong> ({nightlyReport.resultingWater}%)
-                      </span>
-                      <span className="rounded-sm bg-slate-900/90 px-2 py-1">
-                        🥗 {tx('Food:', 'Comida:')} <strong className="text-emerald-300">-{nightlyReport.foodConsumed}</strong> ({nightlyReport.resultingFood} {tx('rations', 'rações')})
-                      </span>
-                      <span className="rounded-sm bg-slate-900/90 px-2 py-1">
-                        ❤️ {tx('Health:', 'Saúde:')} <strong className={nightlyReport.healthDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'}>{nightlyReport.healthDelta >= 0 ? `+${nightlyReport.healthDelta}` : nightlyReport.healthDelta}%</strong>
-                      </span>
-                      <span className="rounded-sm bg-slate-900/90 px-2 py-1">
-                        🌪️ {tx('Dust:', 'Poeira:')} <strong className="text-orange-300">+{nightlyReport.dustAdded}%</strong>
-                      </span>
-                      <span className="rounded-sm bg-slate-900/90 px-2 py-1">
-                        🛡️ {tx('Shelter:', 'Abrigo:')} <strong className={nightlyReport.stormPenaltyApplied ? 'text-rose-300' : 'text-emerald-300'}>{nightlyReport.stormPenaltyApplied ? tx('Unprotected!', 'Sem proteção!') : tx('Safe', 'Seguro')}</strong>
-                      </span>
-                    </div>
-                    <p className="text-slate-200">{translateText(nightlyReport.capiSummary)}</p>
-                    {nightlyReport.dailyLogSnapshot && (
-                      <div className="space-y-1 rounded-sm border border-cyan-500/40 bg-slate-950/75 p-2 text-[11px] text-slate-200">
-                        <span className="block font-pixel text-[8px] text-cyan-300">
-                          {tx(
-                            `REAL SOL ${nightlyReport.completedSol} LOG:`,
-                            `REGISTRO REAL DO SOL ${nightlyReport.completedSol}:`
-                          )}
-                        </span>
-                        <p>• {tx('Workouts', 'Exercícios')}: {translateText(nightlyReport.dailyLogSnapshot.exerciseSummary)}</p>
-                        <p>• {tx('Nutrition', 'Alimentação')}: {translateText(nightlyReport.dailyLogSnapshot.mealSummary)}</p>
-                        <p>• {tx('Hydration', 'Hidratação')}: {translateText(nightlyReport.dailyLogSnapshot.hydrationSummary)}</p>
-                        <p>• {tx('Hygiene', 'Higiene')}: {translateText(nightlyReport.dailyLogSnapshot.hygieneSummary)}</p>
-                        <p>
-                          • {tx('Stations', 'Estações')}:{' '}
-                          {nightlyReport.dailyLogSnapshot.stationOperations.length > 0
-                            ? nightlyReport.dailyLogSnapshot.stationOperations.map((op) => translateText(op)).join(' | ')
-                            : tx('No external stations operated before rest', 'Nenhuma estação operada antes do descanso')}
-                        </p>
-                      </div>
-                    )}
-                    <p className="text-[11px] text-emerald-200">
-                      {tx('Stamina Cap on Sol', 'Teto de Stamina no Sol')} {state.survival.sol}:{' '}
-                      <strong>{nightlyReport.maxStaminaNextSol}%</strong>
-                    </p>
-                    {nightlyReport.dominoEffects.length > 0 && (
-                      <div className="space-y-0.5 rounded-sm border border-rose-500/60 bg-rose-950/45 px-2 py-1.5 text-[11px] text-rose-100">
-                        <span className="block font-pixel text-[8px] text-rose-300">
-                          {tx('⚠️ NIGHTLY CASCADE FAILURES:', '⚠️ FALHAS EM CASCATA NA NOITE:')}
-                        </span>
-                        {nightlyReport.dominoEffects.map((effect) => (
-                          <p key={effect}>• {translateText(effect)}</p>
-                        ))}
-                      </div>
-                    )}
-                    {nextWeather && (
-                      <p className="rounded-sm border border-cyan-500/40 bg-slate-900/80 px-2 py-1 text-cyan-200">
-                        📡 <strong>{tx(`Forecast Sol ${state.survival.sol}/30:`, `Previsão Sol ${state.survival.sol}/30:`)}</strong>{' '}
-                        {translateText(nextWeather.shortBadge)} ({translateText(nextWeather.title)}) —{' '}
-                        {nextWarning
-                          ? tx(
-                              `Tomorrow (Sol ${nextWarning.sol}): ${translateText(nextWarning.title)} — ${translateText(nextWarning.capiAdvice)}`,
-                              `Amanhã (Sol ${nextWarning.sol}): ${nextWarning.title} — ${nextWarning.capiAdvice}`
+                    {(() => {
+                      const reportWeather = getLocalizedWeather(nightlyReport.weather.type, dict);
+                      const reportLog = getLocalizedDailyLog(
+                        nightlyReport.dailyLogSnapshot,
+                        dict,
+                        lang,
+                        nightlyReport.resultingWater
+                      );
+                      const reportSummary = getLocalizedNightlySummary(nightlyReport, dict);
+                      const dominoLines =
+                        nightlyReport.dominoEffectDescriptors &&
+                        nightlyReport.dominoEffectDescriptors.length > 0
+                          ? nightlyReport.dominoEffectDescriptors.map((d) =>
+                              formatNightlyDominoEffect(d, dict)
                             )
-                          : translateText(nextWeather.capiAdvice)}
-                      </p>
-                    )}
+                          : nightlyReport.dominoEffects.map((e) => translateText(e));
+                      const nextWeatherLocalized = nextWeather
+                        ? getLocalizedWeather(nextWeather.type, dict)
+                        : null;
+                      const nextWarningLocalized = nextWarning
+                        ? getLocalizedWeather(nextWarning.type, dict)
+                        : null;
+
+                      return (
+                        <>
+                          <p className="font-pixel text-[9px] text-amber-300">
+                            {tx('NIGHTLY BALANCE', 'BALANÇO NOTURNO')} — {tx('SOL', 'SOL')}{' '}
+                            {nightlyReport.completedSol}/30 ({reportWeather.shortBadge} •{' '}
+                            {reportWeather.title})
+                          </p>
+                          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                            <span className="rounded-sm bg-slate-900/90 px-2 py-1">
+                              ☀️ {tx('Solar:', 'Solar:')}{' '}
+                              <strong className="text-amber-300">+{nightlyReport.solarGenerated}%</strong> / -
+                              {nightlyReport.energyConsumed}%
+                            </span>
+                            <span className="rounded-sm bg-slate-900/90 px-2 py-1">
+                              💧 {tx('Water:', 'Água:')}{' '}
+                              <strong className="text-cyan-300">-{nightlyReport.waterConsumed}%</strong> (
+                              {nightlyReport.resultingWater}%)
+                            </span>
+                            <span className="rounded-sm bg-slate-900/90 px-2 py-1">
+                              🥗 {tx('Food:', 'Comida:')}{' '}
+                              <strong className="text-emerald-300">-{nightlyReport.foodConsumed}</strong> (
+                              {nightlyReport.resultingFood} {tx('rations', 'rações')})
+                            </span>
+                            <span className="rounded-sm bg-slate-900/90 px-2 py-1">
+                              ❤️ {tx('Health:', 'Saúde:')}{' '}
+                              <strong
+                                className={
+                                  nightlyReport.healthDelta >= 0 ? 'text-emerald-300' : 'text-rose-300'
+                                }
+                              >
+                                {nightlyReport.healthDelta >= 0
+                                  ? `+${nightlyReport.healthDelta}`
+                                  : nightlyReport.healthDelta}
+                                %
+                              </strong>
+                            </span>
+                            <span className="rounded-sm bg-slate-900/90 px-2 py-1">
+                              🌪️ {tx('Dust:', 'Poeira:')}{' '}
+                              <strong className="text-orange-300">+{nightlyReport.dustAdded}%</strong>
+                            </span>
+                            <span className="rounded-sm bg-slate-900/90 px-2 py-1">
+                              🛡️ {tx('Shelter:', 'Abrigo:')}{' '}
+                              <strong
+                                className={
+                                  nightlyReport.stormPenaltyApplied
+                                    ? 'text-rose-300'
+                                    : 'text-emerald-300'
+                                }
+                              >
+                                {nightlyReport.stormPenaltyApplied
+                                  ? tx('Unprotected!', 'Sem proteção!')
+                                  : tx('Safe', 'Seguro')}
+                              </strong>
+                            </span>
+                          </div>
+                          <p className="text-slate-200">{reportSummary}</p>
+                          <div className="space-y-1 rounded-sm border border-cyan-500/40 bg-slate-950/75 p-2 text-[11px] text-slate-200">
+                            <span className="block font-pixel text-[8px] text-cyan-300">
+                              {tx(
+                                `REAL SOL ${nightlyReport.completedSol} LOG:`,
+                                `REGISTRO REAL DO SOL ${nightlyReport.completedSol}:`
+                              )}
+                            </span>
+                            <p>• {tx('Workouts', 'Exercícios')}: {reportLog.exerciseSummary}</p>
+                            <p>• {tx('Nutrition', 'Alimentação')}: {reportLog.mealSummary}</p>
+                            <p>• {tx('Hydration', 'Hidratação')}: {reportLog.hydrationSummary}</p>
+                            <p>• {tx('Hygiene', 'Higiene')}: {reportLog.hygieneSummary}</p>
+                            <p>
+                              • {tx('Stations', 'Estações')}:{' '}
+                              {reportLog.stationOperations.length > 0
+                                ? reportLog.stationOperations.join(' | ')
+                                : tx(
+                                    'No external stations operated before rest',
+                                    'Nenhuma estação operada antes do descanso'
+                                  )}
+                            </p>
+                          </div>
+                          <p className="text-[11px] text-emerald-200">
+                            {tx('Stamina Cap on Sol', 'Teto de Stamina no Sol')} {state.survival.sol}:{' '}
+                            <strong>{nightlyReport.maxStaminaNextSol}%</strong>
+                          </p>
+                          {dominoLines.length > 0 && (
+                            <div className="space-y-0.5 rounded-sm border border-rose-500/60 bg-rose-950/45 px-2 py-1.5 text-[11px] text-rose-100">
+                              <span className="block font-pixel text-[8px] text-rose-300">
+                                {tx('⚠️ NIGHTLY CASCADE FAILURES:', '⚠️ FALHAS EM CASCATA NA NOITE:')}
+                              </span>
+                              {dominoLines.map((effect) => (
+                                <p key={effect}>• {effect}</p>
+                              ))}
+                            </div>
+                          )}
+                          {nextWeatherLocalized && (
+                            <p className="rounded-sm border border-cyan-500/40 bg-slate-900/80 px-2 py-1 text-cyan-200">
+                              📡{' '}
+                              <strong>
+                                {tx(
+                                  `Forecast Sol ${state.survival.sol}/30:`,
+                                  `Previsão Sol ${state.survival.sol}/30:`
+                                )}
+                              </strong>{' '}
+                              {nextWeatherLocalized.shortBadge} ({nextWeatherLocalized.title}) —{' '}
+                              {nextWarning && nextWarningLocalized
+                                ? tx(
+                                    `Tomorrow (Sol ${nextWarning.sol}): ${nextWarningLocalized.title} — ${nextWarningLocalized.capiAdvice}`,
+                                    `Amanhã (Sol ${nextWarning.sol}): ${nextWarningLocalized.title} — ${nextWarningLocalized.capiAdvice}`
+                                  )
+                                : nextWeatherLocalized.capiAdvice}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : state.mission5.endingUnlocked ? (
                   <p className="rounded-sm border border-cyan-400/70 bg-cyan-950/80 px-2 py-1 text-xs text-cyan-100">
@@ -811,7 +893,7 @@ export const SleepReportModal: React.FC = () => {
             />
             <p className="font-dialog text-xs leading-relaxed text-cyan-50">
               {isSurvival && step === 7 && nightlyReport
-                ? translateText(nightlyReport.capiSummary)
+                ? getLocalizedNightlySummary(nightlyReport, dict)
                 : currentStep.capiSpeech}
             </p>
           </div>

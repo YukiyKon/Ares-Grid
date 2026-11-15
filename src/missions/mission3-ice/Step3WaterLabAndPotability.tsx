@@ -12,6 +12,7 @@ import {
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface ProcessStepItem {
   key: 'separateSoil' | 'meltIce' | 'filterParticles' | 'treatWater';
@@ -100,6 +101,7 @@ export const Step3WaterLabAndPotability: React.FC<Step3WaterLabAndPotabilityProp
     completeMission3WaterDiscovery,
     executeSurvivalStationAction,
   } = useGameStore();
+  const { dict } = useLanguage();
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const { processSteps, potabilityChecks } = state.mission3;
   const [safetyBlockedWarning, setSafetyBlockedWarning] = useState(false);
@@ -392,7 +394,7 @@ export const Step3WaterLabAndPotability: React.FC<Step3WaterLabAndPotabilityProp
               <Droplets className="h-4 w-4" />
               {isWaterSafeToDrink
                 ? isSurvival
-                  ? '💧 Abastecer Base (+35% Água Potável • -1 Turno) ▶'
+                  ? dict.survival.missionActions.m3SurvivalBtn
                   : 'Liberar Água Potável & Abastecer Base (100%) ▶'
                 : 'Tentar Beber / Liberar Água Agora'}
             </button>

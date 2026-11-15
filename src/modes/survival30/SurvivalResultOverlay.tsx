@@ -4,6 +4,7 @@ import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { getLocalizedFailureReason } from './survivalI18n';
 
 /**
  * Sobreposição de fim de expedição no Modo 2 (30 Sols):
@@ -12,7 +13,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
  */
 export const SurvivalResultOverlay: React.FC = () => {
   const { state, restartSurvival30, toggleGameMode } = useGameStore();
-  const { lang, tx, translateText } = useLanguage();
+  const { lang, dict, tx, translateText } = useLanguage();
   const { survival, astronaut } = state;
 
   if (state.gameMode !== 'SURVIVAL_30' || survival.gameStatus === 'PLAYING') {
@@ -268,12 +269,17 @@ export const SurvivalResultOverlay: React.FC = () => {
             {tx(`Base Collapse on Sol ${reachedSol}/30`, `Colapso na Base no Sol ${reachedSol}/30`)}
           </h2>
           <p className="mt-3 rounded-sm border border-rose-500/50 bg-rose-950/40 p-3 font-dialog text-sm leading-relaxed text-rose-100">
-            {survival.gameOverReason
-              ? translateText(survival.gameOverReason)
-              : tx(
-                  'One of the base life-support systems hit 0%. Adjust your power, water, and shelter priorities on the next run.',
-                  'Um dos sistemas vitais da base chegou a 0%. Ajuste a prioridade de energia, água e abrigo nos próximos Sols.'
-                )}
+            {getLocalizedFailureReason(
+              survival.gameOverCause,
+              reachedSol,
+              dict,
+              survival.gameOverReason,
+              translateText
+            ) ??
+              tx(
+                'One of the base life-support systems hit 0%. Adjust your power, water, and shelter priorities on the next run.',
+                'Um dos sistemas vitais da base chegou a 0%. Ajuste a prioridade de energia, água e abrigo nos próximos Sols.'
+              )}
           </p>
 
           {renderCapiConsolidatedReport(false)}

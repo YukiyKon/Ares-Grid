@@ -11,6 +11,7 @@ import {
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { type WaterDoseId, useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 import type { SurvivalActionDetails } from '../../modes/survival30/survivalTypes';
 
 type FoodGroup = 'PROTEIN' | 'VEGGIE' | 'CARB';
@@ -79,6 +80,7 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
   onCapiFeedback,
 }) => {
   const { state, updateMission2, updateStats, recordSurvivalDailyLog } = useGameStore();
+  const { dict, tx } = useLanguage();
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const noRationsLeft = isSurvival && state.survival.foodRations <= 0;
   const { selectedProtein, selectedVeggie, selectedCarb, waterDose } = state.mission2;
@@ -397,15 +399,19 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
       };
     }
 
-    const items = [selectedProtein, selectedVeggie, selectedCarb].filter(Boolean).join(', ');
+    const mealItems = [selectedProtein, selectedVeggie, selectedCarb].filter(
+      (x): x is string => Boolean(x)
+    );
+    const items = mealItems.join(', ');
     return {
       exercised,
       exerciseCount: state.mission2.exercisesCompleted.length,
       ateMeal: hasBalancedPlate,
       mealKcal: totalKcal,
+      mealItems,
       mealSummary: hasBalancedPlate
-        ? `Refeição balanceada: ${totalKcal} kcal (${items})`
-        : `Ração parcial (${totalKcal} kcal)`,
+        ? dict.survival.dailyLog.mealBalanced(totalKcal, items)
+        : tx(`Partial ration (${totalKcal} kcal)`, `Ração parcial (${totalKcal} kcal)`),
       hydrationMl: resolvedWater,
     };
   };
@@ -418,13 +424,15 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
       exerciseCount: details.exerciseCount ?? 0,
       ateMeal: Boolean(details.ateMeal),
       mealKcal: details.mealKcal ?? 0,
+      mealItems: details.mealItems,
       mealSummary: details.mealSummary,
       hydratedToday: (details.hydrationMl ?? 0) > 0,
       hydrationMl: details.hydrationMl ?? 0,
+      hydrationWaterAfter: postUseWater,
       hydrationSummary:
         (details.hydrationMl ?? 0) > 0
-          ? `${details.hydrationMl} ml ingeridos • Reservatório em ${postUseWater}%`
-          : `Hidratação insuficiente • Reservatório em ${state.survival.water}%`,
+          ? dict.survival.dailyLog.hydrationDone(details.hydrationMl ?? 0, postUseWater)
+          : dict.survival.dailyLog.hydrationNightFallback(state.survival.water),
     });
     return details;
   };
@@ -858,8 +866,8 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
               >
                 <Droplets className="h-4 w-4" />
                 {hasIdealWater
-                  ? '💧 Salvar Hidratação (0 Rações) & Ir para Higiene (2.3) ▶'
-                  : '0 rações disponíveis — Dose água (300–400 ml) para hidratar'}
+                  ? dict.survival.missionActions.m2HydrationOnlyBtn
+                  : dict.survival.missionActions.m2HydrationNeedWater}
               </button>
 
               {onFinishSurvivalTurn && hasIdealWater && (
@@ -869,7 +877,7 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
                   className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-2 font-pixel text-[9px] text-slate-950 hover:bg-emerald-300"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  ✅ Hidratar & Concluir Turno Agora (-1 Turno • +8% Saúde) ▶
+                  {dict.survival.missionActions.m2HydrationQuickTurnBtn}
                 </button>
               )}
             </div>
@@ -884,18 +892,30 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
             >
               <CheckCircle2 className="h-4 w-4" />
               {noRationsLeft
-                ? 'Estoque zerado (0 rações) — Use a Estufa (Estação 4) ou Hidrate acima'
+                ? dict.survival.missionActions.m2StockEmptyBtn
                 : canFinish
                 ? isSurvival
-                  ? `🥗 Registrar Refeição (${totalKcal} kcal) & Ir para Higiene (2.3) ▶`
+                  ? dict.survival.missionActions.m2MealStepBtn(totalKcal)
                   : `Confirmar Refeição (${totalKcal} kcal) & Ir para Higiene (2.3) ▶`
                 : calorieStatus === 'LOW'
-                ? `Energia insuficiente (${totalKcal} kcal) — Atinga 650–820 kcal`
+                ? tx(
+                    `Low energy (${totalKcal} kcal) — Reach 650–820 kcal`,
+                    `Energia insuficiente (${totalKcal} kcal) — Atinga 650–820 kcal`
+                  )
                 : calorieStatus === 'HIGH'
-                ? `Excesso calórico (${totalKcal} kcal) — Reduza para 650–820 kcal`
+                ? tx(
+                    `Calorie excess (${totalKcal} kcal) — Reduce to 650–820 kcal`,
+                    `Excesso calórico (${totalKcal} kcal) — Reduza para 650–820 kcal`
+                  )
                 : !hasBalancedPlate
-                ? 'Monte os 3 grupos alimentares (650–820 kcal)'
-                : 'Dose a água entre 300 ml e 400 ml para confirmar'}
+                ? tx(
+                    'Assemble all 3 food groups (650–820 kcal)',
+                    'Monte os 3 grupos alimentares (650–820 kcal)'
+                  )
+                : tx(
+                    'Dispense water between 300 ml and 400 ml to confirm',
+                    'Dose a água entre 300 ml e 400 ml para confirmar'
+                  )}
             </button>
 
             {isSurvival && canFinish && !noRationsLeft && onFinishSurvivalTurn && (
@@ -905,7 +925,7 @@ export const Step2NutritionGalley: React.FC<Step2NutritionGalleyProps> = ({
                 className="pixel-btn flex w-full items-center justify-center gap-2 border border-cyan-400/60 bg-cyan-950/70 px-4 py-2 font-pixel text-[9px] text-cyan-200 hover:bg-cyan-900/70"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                ✅ Concluir Turno no Habitat Agora (Sem Higiene • -1 Turno • +22% Saúde • +35% Stamina) ▶
+                {dict.survival.missionActions.m2MealQuickTurnBtn}
               </button>
             )}
           </div>

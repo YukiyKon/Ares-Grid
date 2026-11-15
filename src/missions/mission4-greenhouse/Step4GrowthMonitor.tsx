@@ -17,6 +17,7 @@ import {
   useGameStore,
 } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const GROWTH_LABELS: Record<0 | 1 | 2 | 3, { stage: string; height: string; roots: string }> = {
   0: {
@@ -59,6 +60,7 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
   onCapiFeedback,
 }) => {
   const { state, updateMission4 } = useGameStore();
+  const { dict } = useLanguage();
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const { envSettings, growthStage, selectedCrops } = state.mission4;
 
@@ -529,7 +531,7 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
             <CheckCircle2 className="h-4 w-4" />
             {allHarvested
               ? isSurvival
-                ? '🌱 Colher & Armazenar (+3 Rações • +10% Saúde • -1 Turno) ▶'
+                ? dict.survival.missionActions.m4SurvivalBtn
                 : 'Integrar Sistema Bioregenerativo (Desafio 4.5) ▶'
               : growthStage < 3
               ? `Borrife névoa na bandeja (${growthStage}/3 estágios)`

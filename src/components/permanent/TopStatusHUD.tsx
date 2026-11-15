@@ -24,6 +24,7 @@ import {
 import { type GameSceneId, useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { LanguageToggleButton, useLanguage } from '../../i18n/LanguageContext';
+import { getLocalizedDominoAlerts } from '../../modes/survival30/survivalI18n';
 import { getSolWeather } from '../../modes/survival30/weatherScheduler';
 import { AstronautAvatar } from './AstronautAvatar';
 
@@ -162,14 +163,17 @@ export const TopStatusHUD: React.FC = () => {
               </strong>
             </div>
 
-            {state.survival.dominoAlerts.length > 0 && (
-              <span
-                title={state.survival.dominoAlerts.join(' | ')}
-                className="rounded-sm border border-rose-500/80 bg-rose-950/90 px-2 py-0.5 font-pixel text-[8px] text-rose-200 animate-pulse"
-              >
-                ⚠️ {state.survival.dominoAlerts.length} {dict.hud.cascadeBadge}
-              </span>
-            )}
+            {(() => {
+              const alerts = getLocalizedDominoAlerts(state.survival, dict);
+              return alerts.length > 0 ? (
+                <span
+                  title={alerts.join(' | ')}
+                  className="rounded-sm border border-rose-500/80 bg-rose-950/90 px-2 py-0.5 font-pixel text-[8px] text-rose-200 animate-pulse"
+                >
+                  ⚠️ {alerts.length} {dict.hud.cascadeBadge}
+                </span>
+              ) : null;
+            })()}
 
             <div
               className="flex items-center gap-1 rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 font-dialog text-xs"

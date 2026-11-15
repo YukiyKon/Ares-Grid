@@ -915,9 +915,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const weather = getSolWeather(nextSurvival.sol);
         const crisisChance = weather.isCritical || weather.isModerateAlert ? 0.72 : 0.45;
         if (Math.random() < crisisChance) {
+          const spawnedCrisis = createSurvivalCrisis(nextSurvival.sol);
           nextSurvival = {
             ...nextSurvival,
-            activeCrisis: createSurvivalCrisis(nextSurvival.sol),
+            activeCrisis: spawnedCrisis,
+            lastNoticeDescriptor: {
+              kind: 'CRISIS_STARTED',
+              crisisType: spawnedCrisis.type,
+            },
           };
         }
       }
@@ -940,11 +945,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ) {
         return prev;
       }
+      const spawnedCrisis = createSurvivalCrisis(prev.survival.sol, preferredType);
       return {
         ...prev,
         survival: {
           ...prev.survival,
-          activeCrisis: createSurvivalCrisis(prev.survival.sol, preferredType),
+          activeCrisis: spawnedCrisis,
+          lastNoticeDescriptor: {
+            kind: 'CRISIS_STARTED',
+            crisisType: spawnedCrisis.type,
+          },
         },
       };
     });

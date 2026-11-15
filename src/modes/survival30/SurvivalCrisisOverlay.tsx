@@ -4,6 +4,7 @@ import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { getLocalizedCrisis } from './survivalI18n';
 import { getSolWeather } from './weatherScheduler';
 
 /**
@@ -18,7 +19,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
     triggerSurvivalCrisis,
     resolveCrisisViaStation,
   } = useGameStore();
-  const { tx, translateText } = useLanguage();
+  const { dict, tx } = useLanguage();
 
   const lastCrisisIdRef = useRef<string | null>(null);
   const idleSolAmbushRef = useRef<number | null>(null);
@@ -26,7 +27,8 @@ export const SurvivalCrisisOverlay: React.FC = () => {
 
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const { survival } = state;
-  const crisis = survival.activeCrisis;
+  const rawCrisis = survival.activeCrisis;
+  const crisis = rawCrisis ? getLocalizedCrisis(rawCrisis, dict) : null;
   const weather = getSolWeather(survival.sol);
 
   const isResourceDanger =
@@ -135,7 +137,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
         <div
           role="alertdialog"
           aria-modal="true"
-          aria-label={translateText(crisis.title)}
+          aria-label={crisis.title}
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-2 backdrop-blur-sm sm:p-3"
         >
           <div
@@ -164,7 +166,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
             </div>
 
             <h2 className="font-pixel text-xs text-amber-300 sm:text-sm">
-              {translateText(crisis.title)}
+              {crisis.title}
             </h2>
 
             {/* Barra de tempo restante */}
@@ -190,7 +192,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
                   {tx('CAPI • IMMEDIATE ALERT', 'CAPI • ALERTA IMEDIATO')}
                 </span>
                 <p className="mt-0.5 font-dialog text-xs leading-snug text-rose-100">
-                  {translateText(crisis.capiUrgentWarning)}
+                  {crisis.capiUrgentWarning}
                 </p>
               </div>
             </div>
@@ -199,7 +201,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
               <span>
                 <strong>{tx('Risk if failed:', 'Risco se falhar:')}</strong>{' '}
-                {translateText(crisis.penaltySummary)}
+                {crisis.penaltySummary}
               </span>
             </div>
 
@@ -233,7 +235,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
                 }}
                 className="pixel-btn min-h-[44px] w-full bg-rose-500 px-4 py-3 font-pixel text-[10px] text-white hover:bg-rose-400"
               >
-                {translateText(crisis.actionButtonLabel)} ({crisis.progress}/{crisis.requiredProgress})
+                {crisis.actionButtonLabel} ({crisis.progress}/{crisis.requiredProgress})
               </button>
 
               <button

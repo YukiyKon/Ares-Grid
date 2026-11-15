@@ -3,6 +3,7 @@ import { ArrowLeft, Sprout } from 'lucide-react';
 import { CapiAssistant } from '../../components/permanent/CapiAssistant';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { SurvivalStationBanner } from '../../modes/survival30/SurvivalStationBanner';
 import { Step1BuildGreenhouse } from './Step1BuildGreenhouse';
 import { Step2CultivationMethods } from './Step2CultivationMethods';
@@ -12,10 +13,12 @@ import { Step5BioregenerativeSystem } from './Step5BioregenerativeSystem';
 
 export const Mission4GreenhouseScene: React.FC = () => {
   const { state, setScene, updateMission4, executeSurvivalStationAction } = useGameStore();
+  const { dict, tx } = useLanguage();
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const phase =
     state.mission4.phase === 'COMPLETED' ? 'STEP_5_BIOREG' : state.mission4.phase;
   const [dynamicCapiLine, setDynamicCapiLine] = useState<string | null>(null);
+  const [lockAlert, setLockAlert] = useState(false);
 
   const defaultLinesByPhase: Record<
     | 'STEP_1_BUILD'
@@ -26,28 +29,57 @@ export const Mission4GreenhouseScene: React.FC = () => {
     string[]
   > = {
     STEP_1_BUILD: [
-      'Comandante, será que conseguimos colher tomate, morango ou uma flor colorida aqui em Marte?',
-      'Instale os subsistemas da estufa experimental e conecte-a à nossa Energia Solar e à Água Potável!',
+      tx(
+        'Commander, can we actually harvest tomatoes, strawberries, or a bright flower right here on Mars?',
+        'Comandante, será que conseguimos colher tomate, morango ou uma flor colorida aqui em Marte?'
+      ),
+      tx(
+        'Install the experimental greenhouse subsystems and link them to our Solar Array and Drinking Water!',
+        'Instale os subsistemas da estufa experimental e conecte-a à nossa Energia Solar e à Água Potável!'
+      ),
     ],
     STEP_2_METHODS: [
-      'Podemos cultivar sem solo tradicional usando Hidroponia (raízes na água) e Aeroponia (névoa nutritiva)!',
-      'Experimente os métodos e veja por que o regolito marciano bruto não pode ser usado direto!',
+      tx(
+        'We can grow crops without traditional soil using Hydroponics (water roots) and Aeroponics (nutrient mist)!',
+        'Podemos cultivar sem solo tradicional usando Hidroponia (raízes na água) e Aeroponia (névoa nutritiva)!'
+      ),
+      tx(
+        'Test both methods and discover why raw Martian regolith cannot be used directly!',
+        'Experimente os métodos e veja por que o regolito marciano bruto não pode ser usado direto!'
+      ),
     ],
     STEP_3_CROPS: [
-      'Vamos escolher nossas plantas nos 4 grupos de pesquisa: Hortaliças, Frutíferas, Cereais e Ornamentais!',
-      'Cada grupo tem um papel importante para alimentação e bem-estar no habitat.',
+      tx(
+        'Let us pick our crops from the 4 research groups: Vegetables, Fruits, Grains, and Ornamentals!',
+        'Vamos escolher nossas plantas nos 4 grupos de pesquisa: Hortaliças, Frutíferas, Cereais e Ornamentais!'
+      ),
+      tx(
+        'Each plant group plays an important role in crew nutrition and psychological well-being in the Habitat.',
+        'Cada grupo tem um papel importante para alimentação e bem-estar no habitat.'
+      ),
     ],
     STEP_4_GROWTH: [
-      'Hora de acompanhar a germinação, raízes e folhas! Ajuste luz, água e temperatura para evitar estresse nas plantas.',
+      tx(
+        'Time to monitor germination, roots, and leaves! Balance light, water, and temperature to avoid plant stress.',
+        'Hora de acompanhar a germinação, raízes e folhas! Ajuste luz, água e temperatura para evitar estresse nas plantas.'
+      ),
     ],
     STEP_5_BIOREG: [
-      'Excelente! Integre produção de alimentos, oxigênio (O2) e água reciclada em um sistema bioregenerativo!',
-      'Depois faça o registro no Diário e durma para eu enviar o relatório da estufa e liberar a Missão 5!',
+      tx(
+        'Excellent! Integrate food crops, oxygen (O2), and recycled water into one bioregenerative system!',
+        'Excelente! Integre produção de alimentos, oxigênio (O2) e água reciclada em um sistema bioregenerativo!'
+      ),
+      tx(
+        'Then record it in your Logbook and sleep so I can transmit the greenhouse report and unlock Mission 5!',
+        'Depois faça o registro no Diário e durma para eu enviar o relatório da estufa e liberar a Missão 5!'
+      ),
     ],
   };
 
   const capiLines = dynamicCapiLine
     ? [dynamicCapiLine]
+    : lockAlert
+    ? [dict.survival.missionActions.m4LockAlert]
     : defaultLinesByPhase[phase];
 
   const handleMovePhase = (
@@ -59,6 +91,7 @@ export const Mission4GreenhouseScene: React.FC = () => {
       | 'STEP_5_BIOREG'
   ) => {
     setDynamicCapiLine(null);
+    setLockAlert(false);
     updateMission4({ phase: nextPhase });
   };
 
@@ -70,10 +103,13 @@ export const Mission4GreenhouseScene: React.FC = () => {
           <Sprout className="h-5 w-5 text-emerald-300" />
           <div>
             <h1 className="font-pixel text-xs text-emerald-200">
-              MISSÃO 4 — A PRIMEIRA ESTUFA DE MARTE
+              {tx('MISSION 4 — THE FIRST MARS GREENHOUSE', 'MISSÃO 4 — A PRIMEIRA ESTUFA DE MARTE')}
             </h1>
             <p className="font-dialog text-xs text-slate-300">
-              Agricultura Espacial & Sistemas Bioregenerativos (NASA ECLSS)
+              {tx(
+                'Space Agriculture & Bioregenerative Systems (NASA ECLSS)',
+                'Agricultura Espacial & Sistemas Bioregenerativos (NASA ECLSS)'
+              )}
             </p>
           </div>
         </div>
@@ -82,10 +118,10 @@ export const Mission4GreenhouseScene: React.FC = () => {
           <div className="flex flex-wrap gap-1 font-pixel text-[8px]">
             {(
               [
-                ['STEP_1_BUILD', '4.1 Estufa'],
-                ['STEP_2_METHODS', '4.2 Cultivo'],
-                ['STEP_3_CROPS', '4.3 Plantas'],
-                ['STEP_4_GROWTH', '4.4 Crescer'],
+                ['STEP_1_BUILD', tx('4.1 Dome', '4.1 Estufa')],
+                ['STEP_2_METHODS', tx('4.2 Growth', '4.2 Cultivo')],
+                ['STEP_3_CROPS', tx('4.3 Plants', '4.3 Plantas')],
+                ['STEP_4_GROWTH', tx('4.4 Grow', '4.4 Crescer')],
                 ['STEP_5_BIOREG', '4.5 ECLSS'],
               ] as const
             ).map(([stepId, label]) => {
@@ -115,9 +151,8 @@ export const Mission4GreenhouseScene: React.FC = () => {
                       handleMovePhase(stepId);
                     } else {
                       soundEngine.playAlert();
-                      setDynamicCapiLine(
-                        'Conclua os objetivos do desafio atual antes de avançar para esta etapa!'
-                      );
+                      setDynamicCapiLine(null);
+                      setLockAlert(true);
                     }
                   }}
                   className={`rounded-sm border px-2 py-1 ${
@@ -143,7 +178,7 @@ export const Mission4GreenhouseScene: React.FC = () => {
             className="inline-flex items-center gap-1 rounded-sm border border-slate-700 bg-slate-900 px-2.5 py-1 font-dialog text-xs text-slate-200 hover:border-cyan-400"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Base
+            {dict.common.base}
           </button>
         </div>
       </div>
