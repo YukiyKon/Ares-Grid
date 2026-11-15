@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, MessageSquare, Sparkles } from 'lucide-react';
-import { ASSET_MANIFEST } from '../../assets/assetManifest';
+import { ChevronDown, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
 import { soundEngine } from '../../core/soundEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { CapiBadgePortrait } from '../../modes/arcade-rush/CosmeticSprites';
 
 export interface CapiAssistantProps {
   lines: string[];
@@ -21,7 +21,6 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
 }) => {
   const { dict, translateText } = useLanguage();
   const [stepIndex, setStepIndex] = useState(0);
-  const [imgError, setImgError] = useState(false);
   const [minimized, setMinimized] = useState(false);
 
   const safeLines = lines.length > 0 ? lines : [dict.capi.defaultGreeting];
@@ -71,11 +70,7 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
           }}
           className="pixel-box flex min-h-[40px] items-center gap-1.5 bg-slate-950/95 px-3 py-1.5 text-cyan-200 hover:bg-slate-900"
         >
-          <img
-            src={ASSET_MANIFEST.capiPortrait.path}
-            alt="Capi"
-            className="pixel-art h-6 w-6 object-contain"
-          />
+          <CapiBadgePortrait size="xs" />
           <MessageSquare className="h-3.5 w-3.5 text-cyan-300" />
           <span className="font-pixel text-[8px]">{dict.capi.openShort}</span>
           <span className="rounded bg-cyan-500/20 px-1 font-mono text-[10px] text-cyan-300">
@@ -126,19 +121,7 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
         {/* Conteúdo: retrato pixelado + balão curto (2-3 linhas) */}
         <div className="relative z-10 flex items-end gap-2.5 sm:gap-3">
           <div className="relative shrink-0 rounded-sm border-2 border-cyan-400/70 bg-cyan-950/60 p-1 shadow-[0_0_16px_rgba(34,211,238,0.28)]">
-            {!imgError ? (
-              <img
-                src={ASSET_MANIFEST.capiPortrait.path}
-                alt={ASSET_MANIFEST.capiPortrait.alt}
-                onError={() => setImgError(true)}
-                className="pixel-art h-14 w-14 animate-floatSlow object-contain sm:h-20 sm:w-20"
-              />
-            ) : (
-              <div className="flex h-14 w-14 flex-col items-center justify-center bg-cyan-900/60 text-center sm:h-20 sm:w-20">
-                <Sparkles className="h-5 w-5 text-cyan-300 sm:h-6 sm:w-6" />
-                <span className="mt-1 font-pixel text-[7px] text-cyan-200">{dict.capi.openShort}</span>
-              </div>
-            )}
+            <CapiBadgePortrait size="md" />
           </div>
 
           <div className="flex min-h-[76px] flex-1 flex-col justify-between rounded-sm border-2 border-cyan-400/50 bg-slate-900/90 p-2 sm:min-h-[84px] sm:p-2.5">

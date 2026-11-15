@@ -217,6 +217,10 @@ const SCENE_SUGGESTIONS_BY_LANG: Record<
       event: 'Integrated sustainability review of Arcadia Planitia Base',
       aspect: 'Solar grid, astronaut health, purified water, bioregenerative greenhouse, and storm protection running sustainably.',
     },
+    ARCADE_RUSH: {
+      event: 'Arcade Rush fast-reaction micro-game session',
+      aspect: 'Rapid solar cleaning, drilling, hatch sealing, water dosing, harvest, shelter run, and rhythm drills completed.',
+    },
   },
   pt: {
     START_SCREEN: {
@@ -274,6 +278,10 @@ const SCENE_SUGGESTIONS_BY_LANG: Record<
     FUTURE_MARS: {
       event: 'Avaliação integrada da Base Arcadia Planitia para o futuro em Marte',
       aspect: 'Sistemas de energia solar, saúde, água purificada, estufa bioregenerativa e proteção ambiental operando de forma sustentável.',
+    },
+    ARCADE_RUSH: {
+      event: 'Sessão de reflexo rápido no Modo Arcade Rush',
+      aspect: 'Micro-games táteis de limpeza solar, perfuração, vedação, dosagem, colheita, abrigo e ritmo concluídos.',
     },
   },
 };

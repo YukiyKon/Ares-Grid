@@ -28,19 +28,31 @@ const IntroFloatingLangToggle: React.FC = () => {
   );
 };
 
+const AppShell: React.FC = () => {
+  const { state } = useGameStore();
+  const isArcade = state.currentScene === 'ARCADE_RUSH';
+  return (
+    <div
+      className={`min-h-[100dvh] w-full overflow-x-hidden bg-black text-slate-100 ${
+        isArcade ? 'pb-4' : 'pb-36 sm:pb-32'
+      }`}
+    >
+      <TopStatusHUD />
+      <IntroFloatingLangToggle />
+      <SceneManager />
+      <ArcadiaMapModal />
+      <LogbookModal />
+      <SleepReportModal />
+      <SurvivalCrisisOverlay />
+    </div>
+  );
+};
+
 export const App: React.FC = () => {
   return (
     <LanguageProvider>
       <GameProvider>
-        <div className="min-h-[100dvh] w-full overflow-x-hidden bg-black pb-36 text-slate-100 sm:pb-32">
-          <TopStatusHUD />
-          <IntroFloatingLangToggle />
-          <SceneManager />
-          <ArcadiaMapModal />
-          <LogbookModal />
-          <SleepReportModal />
-          <SurvivalCrisisOverlay />
-        </div>
+        <AppShell />
       </GameProvider>
     </LanguageProvider>
   );

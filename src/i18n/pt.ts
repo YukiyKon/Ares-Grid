@@ -1,3 +1,5 @@
+import type { CosmeticId, MicroGameId } from '../modes/arcade-rush/arcadeStore';
+
 export interface UiDictionary {
   meta: {
     pageTitle: string;
@@ -322,6 +324,41 @@ export interface UiDictionary {
       m5ShelterPendingBtn: string;
     };
   };
+  arcade: {
+    modeTag: string;
+    modeTitle: string;
+    startBtn: string;
+    hudBtn: string;
+    play: string;
+    garage: string;
+    exit: string;
+    go: string;
+    speedUp: string;
+    hold: string;
+    tap: string;
+    commands: Record<MicroGameId, string>;
+    score: string;
+    best: string;
+    combo: string;
+    maxCombo: string;
+    round: string;
+    newRecord: string;
+    gameOver: string;
+    playAgain: string;
+    menu: string;
+    unlocked: string;
+    newBadge: string;
+    totalPoints: string;
+    totalStars: string;
+    categories: Record<'SUIT' | 'ROVER' | 'CAPI', string>;
+    equip: string;
+    equipped: string;
+    cosmetics: Record<CosmeticId, string>;
+    gameAreaAria: string;
+    moveUpAria: string;
+    moveDownAria: string;
+    moveRightAria: string;
+  };
 }
 
 export const UI_PT: UiDictionary = {
@@ -410,6 +447,7 @@ export const UI_PT: UiDictionary = {
       MISSION_5: 'Missão 5: Tempestades',
       EARTH_COMMS: '6. Central Terra',
       FUTURE_MARS: '7. Futuro em Marte',
+      ARCADE_RUSH: '⚡ Arcade Rush',
     },
   },
   capi: {
@@ -748,5 +786,64 @@ export const UI_PT: UiDictionary = {
       m5ShelterReadyBtn: '🛡️ Ativar Proteção da Base (-1 Turno • -15% Stamina) ▶',
       m5ShelterPendingBtn: 'Guie o astronauta até a porta do Abrigo Blindado ▶',
     },
+  },
+  arcade: {
+    modeTag: 'MODO 3 • ARCADE RÁPIDO',
+    modeTitle: 'Arcade Rush: Micro-Games Frenéticos',
+    startBtn: '⚡ ARCADE RUSH',
+    hudBtn: '⚡ ARCADE',
+    play: '▶ JOGAR',
+    garage: '🎨 CUSTOMIZAR / GARAGEM',
+    exit: 'SAIR',
+    go: 'JÁ!',
+    speedUp: 'MAIS RÁPIDO!',
+    hold: 'SEGURE',
+    tap: 'TOQUE',
+    commands: {
+      SCRUB: 'LIMPE!',
+      DRILL: 'PERFURE!',
+      SEAL: 'VEDE!',
+      FILL: 'ENCHA!',
+      HARVEST: 'COLHA!',
+      RUN: 'CORRA!',
+      SYNC: 'SINCRONIZE!',
+    },
+    score: 'PONTOS',
+    best: 'RECORDE',
+    combo: 'COMBO',
+    maxCombo: 'COMBO MÁX.',
+    round: 'RODADA',
+    newRecord: 'NOVO RECORDE!',
+    gameOver: 'FIM DE RODADA',
+    playAgain: '↻ DE NOVO',
+    menu: '☰ MENU',
+    unlocked: 'DESBLOQUEADO!',
+    newBadge: 'NOVO!',
+    totalPoints: 'PTS TOTAIS',
+    totalStars: 'ESTRELAS',
+    categories: {
+      SUIT: '👨‍🚀 TRAJE',
+      ROVER: '🚙 ROVER',
+      CAPI: '🦫 CAPI',
+    },
+    equip: 'EQUIPAR',
+    equipped: '✓ EM USO',
+    cosmetics: {
+      standard_orange: 'Laranja Padrão',
+      golden_visor: 'Visor Dourado',
+      cyber_neon: 'Cyber Neon',
+      galaxy_star: 'Estrela Galáctica',
+      nasa_white: 'Branco NASA',
+      mars_gold: 'Ouro de Marte',
+      turbo_red: 'Vermelho Turbo',
+      blue_cap: 'Boina Azul',
+      star_sunglasses: 'Óculos Estrela',
+      golden_crown: 'Coroa Dourada',
+      mini_jetpack: 'Mini Jetpack',
+    },
+    gameAreaAria: 'Área do micro-game do Arcade Rush',
+    moveUpAria: 'Mover para cima',
+    moveDownAria: 'Mover para baixo',
+    moveRightAria: 'Avançar para a direita',
   },
 };

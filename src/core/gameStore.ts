@@ -35,7 +35,8 @@ export type GameSceneId =
   | 'MISSION_4'
   | 'MISSION_5'
   | 'EARTH_COMMS'
-  | 'FUTURE_MARS';
+  | 'FUTURE_MARS'
+  | 'ARCADE_RUSH';
 
 export type SuitColorId = 'white' | 'orange' | 'cyan' | 'emerald' | 'violet';
 export type HelmetStyleId = 'classic' | 'visor_cyan' | 'gold_shield';

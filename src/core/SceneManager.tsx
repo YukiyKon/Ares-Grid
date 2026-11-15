@@ -42,6 +42,8 @@ import {
 } from '../modes/survival30/weatherScheduler';
 import { EarthCommsScene } from '../scenes/ending/EarthCommsScene';
 import { FutureMarsScene } from '../scenes/ending/FutureMarsScene';
+import { ArcadeRushScene } from '../modes/arcade-rush/ArcadeRushScene';
+import { RoverSprite } from '../modes/arcade-rush/CosmeticSprites';
 import { CapiIntroScene } from '../scenes/intro/CapiIntroScene';
 import { CountdownScene } from '../scenes/intro/CountdownScene';
 import { CustomizeScene } from '../scenes/intro/CustomizeScene';
@@ -325,8 +327,9 @@ const BaseHubScene: React.FC = () => {
               soundEngine.playClick();
               openModal('ARCADIA_MAP');
             }}
-            className="absolute bottom-[8%] left-[48%] min-h-[40px] -translate-x-1/2 rounded-sm border-2 border-amber-300 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:bottom-[14%] sm:left-[46%] sm:translate-x-0 sm:px-2.5"
+            className="absolute bottom-[8%] left-[48%] flex min-h-[40px] -translate-x-1/2 flex-col items-center rounded-sm border-2 border-amber-300 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:bottom-[14%] sm:left-[46%] sm:translate-x-0 sm:px-2.5"
           >
+            <RoverSprite size="sm" />
             <span className="inline-flex items-center gap-1 font-pixel text-[7px] text-amber-300 sm:text-[8px]">
               <Map className="h-3 w-3 shrink-0" />
               ROVER EXPLORADOR
@@ -911,6 +914,8 @@ export const SceneManager: React.FC = () => {
       return <EarthCommsScene />;
     case 'FUTURE_MARS':
       return <FutureMarsScene />;
+    case 'ARCADE_RUSH':
+      return <ArcadeRushScene />;
     default:
       return <StartScreenScene />;
   }

@@ -6,6 +6,7 @@ import type {
   HelmetStyleId,
   SuitColorId,
 } from '../../core/gameStore';
+import { type SuitSkinId, useArcadeProgress } from '../../modes/arcade-rush/arcadeStore';
 
 interface SuitPalette {
   main: string;
@@ -75,26 +76,74 @@ export const BADGE_LABELS: Record<BadgeStyleId, string> = {
 interface AstronautAvatarProps {
   profile: AstronautProfile;
   size?: 'sm' | 'md' | 'lg';
+  suitSkinOverride?: SuitSkinId | null;
 }
 
 export const AstronautAvatar: React.FC<AstronautAvatarProps> = ({
   profile,
   size = 'md',
+  suitSkinOverride,
 }) => {
-  const palette = SUIT_PALETTES[profile.suitColor] ?? SUIT_PALETTES.orange;
+  const arcade = useArcadeProgress();
+  const activeSkin =
+    suitSkinOverride !== undefined ? suitSkinOverride : arcade.equipped.suit;
+
+  const basePalette = SUIT_PALETTES[profile.suitColor] ?? SUIT_PALETTES.orange;
+  const palette: SuitPalette =
+    activeSkin === 'cyber_neon'
+      ? {
+          main: '#0f172a',
+          shade: '#1e1b4b',
+          accent: '#22d3ee',
+          boot: '#ec4899',
+          label: 'Cyber Neon',
+        }
+      : activeSkin === 'galaxy_star'
+      ? {
+          main: '#1e1b4b',
+          shade: '#0f172a',
+          accent: '#fde047',
+          boot: '#6366f1',
+          label: 'Galaxy Star',
+        }
+      : activeSkin === 'golden_visor'
+      ? {
+          ...basePalette,
+          accent: '#facc15',
+        }
+      : suitSkinOverride === 'standard_orange'
+      ? SUIT_PALETTES.orange
+      : basePalette;
 
   const sizeClass =
     size === 'sm' ? 'w-11 h-11' : size === 'lg' ? 'w-44 h-44' : 'w-20 h-20';
 
+  const effectiveHelmetStyle: HelmetStyleId =
+    activeSkin === 'golden_visor'
+      ? 'gold_shield'
+      : activeSkin === 'cyber_neon'
+      ? 'visor_cyan'
+      : profile.helmetStyle;
+
   const visorColor =
-    profile.helmetStyle === 'gold_shield'
+    activeSkin === 'galaxy_star'
+      ? '#312e81'
+      : activeSkin === 'cyber_neon'
+      ? '#06b6d4'
+      : effectiveHelmetStyle === 'gold_shield'
       ? '#f59e0b'
-      : profile.helmetStyle === 'visor_cyan'
+      : effectiveHelmetStyle === 'visor_cyan'
       ? '#0ea5e9'
       : '#1e3a5f';
 
   const visorHighlight =
-    profile.helmetStyle === 'gold_shield' ? '#fef08a' : '#a5f3fc';
+    activeSkin === 'cyber_neon'
+      ? '#ec4899'
+      : activeSkin === 'galaxy_star'
+      ? '#fef08a'
+      : effectiveHelmetStyle === 'gold_shield'
+      ? '#fef08a'
+      : '#a5f3fc';
 
   return (
     <svg
@@ -181,7 +230,7 @@ export const AstronautAvatar: React.FC<AstronautAvatarProps> = ({
       <rect x="10" y="14" width="12" height="2" fill={palette.accent} stroke="#0f172a" strokeWidth="0.8" />
       {/* Visor */}
       <rect x="10" y="5" width="12" height="9" rx="2" fill={visorColor} stroke="#0f172a" strokeWidth="1" />
-      {profile.helmetStyle === 'classic' ? (
+      {effectiveHelmetStyle === 'classic' && activeSkin !== 'galaxy_star' ? (
         <g>
           <rect x="12" y="7" width="8" height="6" fill="#f5c6a5" />
           <rect x="13" y="9" width="1" height="2" fill="#0f172a" />
@@ -194,9 +243,28 @@ export const AstronautAvatar: React.FC<AstronautAvatarProps> = ({
           <rect x="18" y="8" width="2" height="2" fill="#e0f2fe" opacity="0.65" />
         </g>
       )}
-      {/* Brilho do visor */}
+      {/* Brilho e estrelas/neon extras dos trajes do Arcade */}
       <rect x="11" y="6" width="4" height="1" fill={visorHighlight} />
       <rect x="11" y="7" width="2" height="1" fill={visorHighlight} />
+      {activeSkin === 'golden_visor' && (
+        <rect x="9" y="4" width="14" height="1" fill="#fde047" />
+      )}
+      {activeSkin === 'cyber_neon' && (
+        <g>
+          <rect x="7" y="16" width="1" height="4" fill="#ec4899" />
+          <rect x="24" y="16" width="1" height="4" fill="#ec4899" />
+          <rect x="12" y="10" width="8" height="1" fill="#67e8f9" />
+        </g>
+      )}
+      {activeSkin === 'galaxy_star' && (
+        <g>
+          <rect x="12" y="8" width="1" height="1" fill="#fef08a" />
+          <rect x="18" y="11" width="1" height="1" fill="#fef08a" />
+          <rect x="10" y="17" width="1" height="1" fill="#facc15" />
+          <rect x="21" y="18" width="1" height="1" fill="#facc15" />
+          <rect x="15" y="1" width="2" height="2" fill="#fde047" />
+        </g>
+      )}
     </svg>
   );
 };

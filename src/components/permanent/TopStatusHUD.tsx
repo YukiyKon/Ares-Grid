@@ -15,6 +15,7 @@ import {
   Utensils,
   Volume2,
   VolumeX,
+  Zap,
 } from 'lucide-react';
 import {
   isFullscreenActive,
@@ -42,12 +43,14 @@ export const TopStatusHUD: React.FC = () => {
     state,
     openModal,
     setScene,
+    startSurvivalMode,
     toggleGameMode,
     triggerSurvivalCrisis,
     resetGame,
   } = useGameStore();
   const { dict, lang, tx } = useLanguage();
-  const isSurvival = state.gameMode === 'SURVIVAL_30';
+  const isArcade = state.currentScene === 'ARCADE_RUSH';
+  const isSurvival = !isArcade && state.gameMode === 'SURVIVAL_30';
   const survivalWeather = getSolWeather(state.survival.sol);
   const isDangerState =
     isSurvival &&
@@ -101,6 +104,8 @@ export const TopStatusHUD: React.FC = () => {
       className={`sticky top-0 z-30 border-b-4 px-2.5 py-2 text-slate-100 shadow-lg backdrop-blur transition-colors sm:px-3 ${
         isDangerState
           ? 'border-rose-500 bg-rose-950/90'
+          : isArcade
+          ? 'border-fuchsia-500/80 bg-slate-950/95'
           : 'border-slate-800 bg-slate-950/95'
       }`}
     >
@@ -118,11 +123,18 @@ export const TopStatusHUD: React.FC = () => {
               >
                 {state.astronaut.name}
               </span>
-              <span className="rounded-sm border border-cyan-500/60 bg-cyan-950/70 px-1.5 py-0.5 font-pixel text-[8px] text-cyan-300">
-                {isSurvival
-                  ? `${dict.common.sol} ${state.survival.sol}/30`
-                  : `${dict.common.sol} ${state.stats.sol}`}
-              </span>
+              {!isArcade && (
+                <span className="rounded-sm border border-cyan-500/60 bg-cyan-950/70 px-1.5 py-0.5 font-pixel text-[8px] text-cyan-300">
+                  {isSurvival
+                    ? `${dict.common.sol} ${state.survival.sol}/30`
+                    : `${dict.common.sol} ${state.stats.sol}`}
+                </span>
+              )}
+              {isArcade && (
+                <span className="rounded-sm border border-fuchsia-400/70 bg-fuchsia-950/80 px-1.5 py-0.5 font-pixel text-[8px] text-fuchsia-200">
+                  {dict.arcade.hudBtn}
+                </span>
+              )}
               {isSurvival && (
                 <span
                   className={`rounded-sm border px-1.5 py-0.5 font-dialog text-[11px] font-bold ${
@@ -137,15 +149,17 @@ export const TopStatusHUD: React.FC = () => {
                 </span>
               )}
             </div>
-            <p className="truncate font-dialog text-[11px] text-slate-400">
-              {isSurvival ? dict.hud.survivalModeTitle : 'Arcadia Planitia'} •{' '}
-              {dict.hud.sceneLabels[state.currentScene] ?? state.currentScene}
-            </p>
+            {!isArcade && (
+              <p className="truncate font-dialog text-[11px] text-slate-400">
+                {isSurvival ? dict.hud.survivalModeTitle : 'Arcadia Planitia'} •{' '}
+                {dict.hud.sceneLabels[state.currentScene] ?? state.currentScene}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Barras de Recursos */}
-        {isSurvival ? (
+        {/* Barras de Recursos (ocultas no Modo Arcade Rush para visual 100% enxuto) */}
+        {isArcade ? null : isSurvival ? (
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <div className="flex items-center gap-1 rounded-sm border border-indigo-500/60 bg-slate-900 px-2 py-1 font-dialog text-xs">
               <Timer className="h-3.5 w-3.5 text-indigo-300" />
@@ -257,24 +271,68 @@ export const TopStatusHUD: React.FC = () => {
           </div>
         )}
 
-        {/* Botões Permanentes (Idioma / Modo / Mapa de Arcadia / Diário / Dormir / Som / Cenas / Reset) */}
+        {/* Botões Permanentes (Idioma / Modos / Mapa / Diário / Dormir / Som / Tela Cheia / Reset) */}
         <div className="flex flex-wrap items-center gap-1.5">
           <LanguageToggleButton compact />
 
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              toggleGameMode();
-            }}
-            className={`pixel-btn inline-flex min-h-[38px] items-center gap-1 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 ${
-              isSurvival
-                ? 'bg-emerald-400 hover:bg-emerald-300'
-                : 'bg-orange-400 hover:bg-orange-300'
-            }`}
-          >
-            {isSurvival ? dict.hud.switchToTraining : dict.hud.switchToSurvival}
-          </button>
+          {isArcade ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  if (state.gameMode === 'SURVIVAL_30') {
+                    toggleGameMode();
+                  } else {
+                    setScene('BASE_HUB');
+                  }
+                }}
+                className="pixel-btn inline-flex min-h-[38px] items-center gap-1 bg-amber-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-amber-300"
+              >
+                {tx('Training', 'Treino')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  startSurvivalMode();
+                }}
+                className="pixel-btn inline-flex min-h-[38px] items-center gap-1 bg-emerald-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-emerald-300"
+              >
+                {dict.hud.switchToSurvival}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  toggleGameMode();
+                }}
+                className={`pixel-btn inline-flex min-h-[38px] items-center gap-1 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 ${
+                  isSurvival
+                    ? 'bg-emerald-400 hover:bg-emerald-300'
+                    : 'bg-orange-400 hover:bg-orange-300'
+                }`}
+              >
+                {isSurvival ? dict.hud.switchToTraining : dict.hud.switchToSurvival}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.unlock();
+                  soundEngine.playClick();
+                  setScene('ARCADE_RUSH');
+                }}
+                className="pixel-btn inline-flex min-h-[38px] items-center gap-1 bg-fuchsia-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-fuchsia-300"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                {dict.arcade.hudBtn}
+              </button>
+            </>
+          )}
 
           {isSurvival && (
             <button
@@ -290,45 +348,49 @@ export const TopStatusHUD: React.FC = () => {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              openModal('ARCADIA_MAP');
-            }}
-            className="pixel-btn inline-flex min-h-[38px] items-center gap-1.5 bg-emerald-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-emerald-300 sm:px-3"
-          >
-            <Map className="h-3.5 w-3.5" />
-            {dict.hud.arcadiaMapBtn}
-          </button>
+          {!isArcade && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  openModal('ARCADIA_MAP');
+                }}
+                className="pixel-btn inline-flex min-h-[38px] items-center gap-1.5 bg-emerald-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-emerald-300 sm:px-3"
+              >
+                <Map className="h-3.5 w-3.5" />
+                {dict.hud.arcadiaMapBtn}
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              openModal('LOGBOOK');
-            }}
-            className="pixel-btn inline-flex min-h-[38px] items-center gap-1.5 bg-amber-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-amber-300"
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            {dict.hud.logbookBtn} ({state.logbook.length})
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  openModal('LOGBOOK');
+                }}
+                className="pixel-btn inline-flex min-h-[38px] items-center gap-1.5 bg-amber-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-amber-300"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                {dict.hud.logbookBtn} ({state.logbook.length})
+              </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playClick();
-              openModal('SLEEP_REPORT');
-            }}
-            className={`pixel-btn inline-flex min-h-[38px] items-center gap-1.5 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 ${
-              isSurvival && state.survival.turnsLeft === 0
-                ? 'animate-pulse bg-indigo-300 hover:bg-indigo-200'
-                : 'bg-indigo-400 hover:bg-indigo-300'
-            }`}
-          >
-            <Moon className="h-3.5 w-3.5" />
-            {dict.hud.sleepBtn}
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  openModal('SLEEP_REPORT');
+                }}
+                className={`pixel-btn inline-flex min-h-[38px] items-center gap-1.5 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 ${
+                  isSurvival && state.survival.turnsLeft === 0
+                    ? 'animate-pulse bg-indigo-300 hover:bg-indigo-200'
+                    : 'bg-indigo-400 hover:bg-indigo-300'
+                }`}
+              >
+                <Moon className="h-3.5 w-3.5" />
+                {dict.hud.sleepBtn}
+              </button>
+            </>
+          )}
 
           <button
             type="button"
