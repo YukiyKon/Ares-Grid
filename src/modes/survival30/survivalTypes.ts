@@ -1573,6 +1573,7 @@ export function resolveNightlySolTransition(
     ...normalized,
     sol: normalized.sol + 1,
     clockMinutes: mode === 'FAINTED' ? FAINT_WAKE_MINUTES : DAY_START_MINUTES,
+    clockPaused: false,
     fastForward2x: false,
     faintState: 'NONE',
     lastSleepMode: mode,

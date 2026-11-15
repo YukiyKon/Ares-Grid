@@ -227,7 +227,15 @@ export const Mission4GreenhouseScene: React.FC = () => {
         )}
       </div>
 
-      <CapiAssistant lines={capiLines} compact />
+      <CapiAssistant
+        dialogId={dynamicCapiLine || lockAlert ? undefined : `mission4_${phase}`}
+        lines={capiLines}
+        onDismiss={() => {
+          if (dynamicCapiLine) setDynamicCapiLine(null);
+          if (lockAlert) setLockAlert(false);
+        }}
+        compact
+      />
     </section>
   );
 };

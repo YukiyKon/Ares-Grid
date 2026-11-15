@@ -76,6 +76,9 @@ export interface UiDictionary {
     continueBtn: string;
     prevBtn: string;
     nextBtn: string;
+    skipBtn: string;
+    finishBtn: string;
+    closeAria: string;
     minimizeLabel: string;
     reopenLabel: string;
     defaultGreeting: string;
@@ -523,6 +526,9 @@ export const UI_PT: UiDictionary = {
     continueBtn: 'Continuar ▶',
     prevBtn: 'Ant',
     nextBtn: 'Próximo',
+    skipBtn: 'Pular',
+    finishBtn: 'Entendido! ▶',
+    closeAria: 'Fechar diálogo da Capi',
     minimizeLabel: 'Minimizar janela da Capi',
     reopenLabel: 'Botão para reabrir janela da Capivara Capi',
     defaultGreeting: 'Olá, comandante! Estou pronta para ajudar.',

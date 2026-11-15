@@ -164,7 +164,15 @@ export const Mission1SolarScene: React.FC = () => {
         )}
       </div>
 
-      <CapiAssistant lines={capiLines} compact />
+      <CapiAssistant
+        dialogId={dynamicCapiLine || lockAlert ? undefined : `mission1_${phase}`}
+        lines={capiLines}
+        onDismiss={() => {
+          if (dynamicCapiLine) setDynamicCapiLine(null);
+          if (lockAlert) setLockAlert(false);
+        }}
+        compact
+      />
     </section>
   );
 };

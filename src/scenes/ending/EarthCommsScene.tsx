@@ -286,7 +286,7 @@ export const EarthCommsScene: React.FC = () => {
         </div>
       </div>
 
-      <CapiAssistant lines={capiLines} compact />
+      <CapiAssistant dialogId="ending_earth_comms" lines={capiLines} compact />
     </section>
   );
 };

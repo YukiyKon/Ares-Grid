@@ -263,6 +263,7 @@ export const CustomizeScene: React.FC = () => {
       </div>
 
       <CapiAssistant
+        dialogId={savedConfirmed ? 'intro_customize_ready' : 'intro_customize_start'}
         lines={capiLines}
         onComplete={savedConfirmed ? handleProceedLanding : undefined}
         completeLabel="Pousar em Marte ▶"

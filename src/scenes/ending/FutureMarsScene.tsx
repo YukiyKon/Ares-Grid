@@ -310,7 +310,7 @@ export const FutureMarsScene: React.FC = () => {
         </div>
       </div>
 
-      <CapiAssistant lines={capiLines} compact />
+      <CapiAssistant dialogId="ending_future_mars" lines={capiLines} compact />
     </section>
   );
 };

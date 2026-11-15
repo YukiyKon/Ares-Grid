@@ -74,6 +74,7 @@ export const CapiIntroScene: React.FC = () => {
 
       {/* Capi no canto inferior direito */}
       <CapiAssistant
+        dialogId="intro_capi_welcome"
         lines={CAPI_INTRO_LINES}
         onComplete={handleGoCustomize}
         completeLabel="Personalizar ▶"

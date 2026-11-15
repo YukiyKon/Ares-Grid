@@ -1,51 +1,77 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, MessageSquare, X } from 'lucide-react';
+import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { CapiBadgePortrait } from '../../modes/arcade-rush/CosmeticSprites';
 
 export interface CapiAssistantProps {
   lines: string[];
+  dialogId?: string;
   badge?: string;
   onComplete?: () => void;
+  onDismiss?: () => void;
   completeLabel?: string;
   compact?: boolean;
 }
 
 export const CapiAssistant: React.FC<CapiAssistantProps> = ({
   lines,
+  dialogId,
   badge,
   onComplete,
+  onDismiss,
   completeLabel,
   compact = false,
 }) => {
+  const { state, markCapiDialogSeen } = useGameStore();
   const { dict, translateText } = useLanguage();
   const [stepIndex, setStepIndex] = useState(0);
   const [minimized, setMinimized] = useState(false);
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
   const safeLines = lines.length > 0 ? lines : [dict.capi.defaultGreeting];
+  const resetKey = dialogId ?? safeLines.join('|');
+  const alreadySeen = Boolean(dialogId && state.seenCapiDialogs.includes(dialogId));
   const rawCurrentText = safeLines[Math.min(stepIndex, safeLines.length - 1)];
   const currentText = translateText(rawCurrentText);
   const resolvedBadge = badge ? translateText(badge) : dict.capi.badge;
   const resolvedCompleteLabel = completeLabel
     ? translateText(completeLabel)
-    : dict.capi.continueBtn;
+    : dict.capi.finishBtn;
   const isLast = stepIndex >= safeLines.length - 1;
 
-  // Reinicia para a primeira fala quando o roteiro da cena muda
-  const linesSignature = safeLines.join('|');
+  // Reinicia apenas quando o ID do diálogo (ou novo roteiro sem ID) muda — nunca por ticks em tempo real
   useEffect(() => {
     setStepIndex(0);
     setMinimized(false);
-  }, [linesSignature]);
+  }, [resetKey]);
+
+  if (alreadySeen || dismissedKey === resetKey) {
+    return null;
+  }
+
+  const handleFinishOrDismiss = (triggerComplete: boolean) => {
+    soundEngine.playClick();
+    if (dialogId) {
+      markCapiDialogSeen(dialogId, { resumeSurvivalClock: true });
+    } else if (state.gameMode === 'SURVIVAL_30' && state.survival.clockPaused) {
+      markCapiDialogSeen(undefined, { resumeSurvivalClock: true });
+    }
+    setDismissedKey(resetKey);
+    if (triggerComplete && onComplete) {
+      onComplete();
+    } else {
+      onDismiss?.();
+    }
+  };
 
   const handleNext = () => {
     soundEngine.playCapiVoiceBeep();
     if (!isLast) {
       setStepIndex((prev) => prev + 1);
-    } else if (onComplete) {
-      soundEngine.playClick();
-      onComplete();
+    } else {
+      handleFinishOrDismiss(true);
     }
   };
 
@@ -91,8 +117,18 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
       <div className="pixel-box relative overflow-hidden bg-slate-950/95 p-2.5 text-cyan-50 hologram-grid sm:p-3">
         <div className="pointer-events-none absolute inset-0 scanlines opacity-75" />
 
+        <button
+          type="button"
+          onClick={() => handleFinishOrDismiss(false)}
+          aria-label={dict.capi.closeAria}
+          title={dict.capi.closeAria}
+          className="absolute right-3 top-3 z-50 cursor-pointer rounded-sm p-1 text-cyan-400 transition hover:bg-slate-800 hover:text-white"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
         {/* Cabeçalho holográfico */}
-        <div className="relative z-10 mb-2 flex items-center justify-between gap-2 border-b-2 border-cyan-500/40 pb-1.5">
+        <div className="relative z-10 mb-2 flex items-center justify-between gap-2 border-b-2 border-cyan-500/40 pb-1.5 pr-8">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 shrink-0 animate-pulse bg-cyan-400" />
             <span className="truncate font-pixel text-[8px] tracking-wide text-cyan-300 sm:text-[9px]">
@@ -111,7 +147,7 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
               }}
               aria-label={dict.capi.minimizeLabel}
               title={dict.capi.minimizeLabel}
-              className="flex min-h-[32px] min-w-[32px] items-center justify-center rounded-sm border border-cyan-700/70 bg-slate-900 px-1.5 py-0.5 text-cyan-300 hover:bg-slate-800"
+              className="flex min-h-[30px] min-w-[30px] items-center justify-center rounded-sm border border-cyan-700/70 bg-slate-900 px-1 py-0.5 text-cyan-300 hover:bg-slate-800"
             >
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
@@ -129,27 +165,38 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
               {currentText}
             </p>
 
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={handlePrev}
-                disabled={stepIndex === 0}
-                className="inline-flex min-h-[36px] items-center gap-0.5 rounded-sm border border-cyan-700/80 bg-slate-800 px-2.5 py-1 font-dialog text-[11px] text-cyan-200 transition hover:bg-slate-700 disabled:opacity-30"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                {dict.capi.prevBtn}
-              </button>
-
-              {(!isLast || onComplete) && (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={handleNext}
-                  className="pixel-btn inline-flex min-h-[36px] items-center gap-1 bg-cyan-400 px-3 py-1 font-dialog text-xs font-bold text-slate-950 hover:bg-cyan-300"
+                  onClick={handlePrev}
+                  disabled={stepIndex === 0}
+                  className="inline-flex min-h-[34px] items-center gap-0.5 rounded-sm border border-cyan-700/80 bg-slate-800 px-2 py-1 font-dialog text-[11px] text-cyan-200 transition hover:bg-slate-700 disabled:opacity-30"
                 >
-                  {isLast ? resolvedCompleteLabel : dict.capi.nextBtn}
-                  {!isLast && <ChevronRight className="h-3.5 w-3.5" />}
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  {dict.capi.prevBtn}
                 </button>
-              )}
+
+                <button
+                  type="button"
+                  onClick={() => handleFinishOrDismiss(false)}
+                  className="inline-flex min-h-[34px] cursor-pointer items-center gap-1 rounded-sm border border-slate-600 bg-slate-900 px-2 py-1 font-dialog text-[11px] text-slate-300 transition hover:border-cyan-400 hover:text-white"
+                >
+                  {dict.capi.skipBtn}
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleNext}
+                className="pixel-btn inline-flex min-h-[34px] items-center gap-1 bg-cyan-400 px-3 py-1 font-dialog text-xs font-bold text-slate-950 hover:bg-cyan-300"
+              >
+                {isLast
+                  ? resolvedCompleteLabel
+                  : `${dict.capi.nextBtn} (${stepIndex + 1}/${safeLines.length})`}
+                {!isLast && <ChevronRight className="h-3.5 w-3.5" />}
+              </button>
             </div>
           </div>
         </div>

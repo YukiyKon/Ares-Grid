@@ -199,7 +199,15 @@ export const Mission2HealthScene: React.FC = () => {
         )}
       </div>
 
-      <CapiAssistant lines={capiLines} compact />
+      <CapiAssistant
+        dialogId={dynamicCapiLine || lockAlert ? undefined : `mission2_${phase}`}
+        lines={capiLines}
+        onDismiss={() => {
+          if (dynamicCapiLine) setDynamicCapiLine(null);
+          if (lockAlert) setLockAlert(false);
+        }}
+        compact
+      />
     </section>
   );
 };

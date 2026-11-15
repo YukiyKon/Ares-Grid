@@ -289,9 +289,34 @@ export interface GameState {
   logbook: LogbookEntry[];
   lastEarthSyncStatus: string;
   activeModal: ActiveModalType;
+  seenCapiDialogs: string[];
 }
 
 const STORAGE_KEY = 'arcadia_planitia_state_v1';
+export const SEEN_DIALOGS_STORAGE_KEY = 'astro_capi_seen_dialogs';
+
+function loadSeenCapiDialogs(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(SEEN_DIALOGS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === 'string' && id.length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSeenCapiDialogs(list: string[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SEEN_DIALOGS_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // ignore storage quota errors
+  }
+}
 
 const DEFAULT_MISSION_1: Mission1State = {
   phase: 'STEP_1_SITE',
@@ -468,14 +493,31 @@ const DEFAULT_STATE: GameState = {
   logbook: [],
   lastEarthSyncStatus: 'Aguardando primeira transmissão orbital.',
   activeModal: 'NONE',
+  seenCapiDialogs: [],
 };
 
 function loadInitialState(): GameState {
   if (typeof window === 'undefined') return DEFAULT_STATE;
+  const persistedSeenDialogs = loadSeenCapiDialogs();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_STATE;
+    if (!raw) {
+      return {
+        ...DEFAULT_STATE,
+        seenCapiDialogs: persistedSeenDialogs,
+      };
+    }
     const parsed = JSON.parse(raw) as Partial<GameState>;
+    const mergedSeenDialogs = Array.from(
+      new Set([
+        ...(Array.isArray(parsed.seenCapiDialogs)
+          ? parsed.seenCapiDialogs.filter(
+              (id): id is string => typeof id === 'string' && id.length > 0
+            )
+          : []),
+        ...persistedSeenDialogs,
+      ])
+    );
     return {
       ...DEFAULT_STATE,
       ...parsed,
@@ -576,9 +618,13 @@ function loadInitialState(): GameState {
       gameMode: parsed.gameMode === 'SURVIVAL_30' ? 'SURVIVAL_30' : 'TRAINING',
       logbook: Array.isArray(parsed.logbook) ? parsed.logbook : [],
       activeModal: 'NONE',
+      seenCapiDialogs: mergedSeenDialogs,
     };
   } catch {
-    return DEFAULT_STATE;
+    return {
+      ...DEFAULT_STATE,
+      seenCapiDialogs: persistedSeenDialogs,
+    };
   }
 }
 
@@ -676,6 +722,10 @@ interface GameContextValue {
     photoDataUrl: string;
   }) => void;
   completeSleepCycle: (earthConnected: boolean) => void;
+  markCapiDialogSeen: (
+    dialogId?: string,
+    options?: { resumeSurvivalClock?: boolean }
+  ) => void;
   resetGame: () => void;
 }
 
@@ -1612,9 +1662,39 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const markCapiDialogSeen = (
+    dialogId?: string,
+    options?: { resumeSurvivalClock?: boolean }
+  ) => {
+    setState((prev) => {
+      const nextSeen =
+        dialogId && !prev.seenCapiDialogs.includes(dialogId)
+          ? [...prev.seenCapiDialogs, dialogId]
+          : prev.seenCapiDialogs;
+      if (nextSeen !== prev.seenCapiDialogs) {
+        saveSeenCapiDialogs(nextSeen);
+      }
+      const shouldResumeClock =
+        options?.resumeSurvivalClock !== false &&
+        prev.gameMode === 'SURVIVAL_30' &&
+        prev.survival.clockPaused;
+      if (nextSeen === prev.seenCapiDialogs && !shouldResumeClock) {
+        return prev;
+      }
+      return {
+        ...prev,
+        seenCapiDialogs: nextSeen,
+        survival: shouldResumeClock
+          ? { ...prev.survival, clockPaused: false }
+          : prev.survival,
+      };
+    });
+  };
+
   const resetGame = () => {
     try {
       window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(SEEN_DIALOGS_STORAGE_KEY);
     } catch {
       // ignore
     }
@@ -1660,6 +1740,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         openModal,
         addLogbookEntry,
         completeSleepCycle,
+        markCapiDialogSeen,
         resetGame,
       },
     },

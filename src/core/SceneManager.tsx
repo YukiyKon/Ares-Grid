@@ -11,12 +11,10 @@ import { Mission4GreenhouseScene } from '../missions/mission4-greenhouse/Mission
 import { Mission5StormsScene } from '../missions/mission5-storms/Mission5StormsScene';
 import {
   formatNoticeDescriptor,
-  getLocalizedDominoAlerts,
   getLocalizedWeather,
 } from '../modes/survival30/survivalI18n';
 import { SurvivalResultOverlay } from '../modes/survival30/SurvivalResultOverlay';
 import {
-  formatMarsClock,
   getCelestialArcProgress,
   getMarsSkyPhase,
   SURVIVAL_STATION_RULES,
@@ -24,7 +22,6 @@ import {
   type SurvivalStationId,
 } from '../modes/survival30/survivalTypes';
 import {
-  computeSolarEfficiency,
   getNextSolEarlyWarning,
   getSolWeather,
 } from '../modes/survival30/weatherScheduler';
@@ -53,7 +50,7 @@ const BaseHubScene: React.FC = () => {
     openModal,
     setSurvivalInBunker,
   } = useGameStore();
-  const { dict, tx, translateText } = useLanguage();
+  const { dict, tx } = useLanguage();
   const [imgError, setImgError] = useState(false);
   const [hubFeedback, setHubFeedback] = useState<HubFeedback>(null);
   const isSurvival = state.gameMode === 'SURVIVAL_30';
@@ -66,15 +63,8 @@ const BaseHubScene: React.FC = () => {
         state.survival.breakers.orbitalRadar
       )
     : null;
-  const clockStr = formatMarsClock(state.survival.clockMinutes);
   const skyPhase = isSurvival ? getMarsSkyPhase(state.survival.clockMinutes) : 'NOON';
   const celestialArc = getCelestialArcProgress(state.survival.clockMinutes);
-  const solarCalc = computeSolarEfficiency(
-    state.survival.clockMinutes,
-    state.survival.panelDustPct,
-    rawWeather.type,
-    state.survival.stormEvent.phase === 'IMPACT'
-  );
   const earlyWarningWeather = earlyWarning
     ? getLocalizedWeather(earlyWarning.type, dict)
     : null;
@@ -93,86 +83,147 @@ const BaseHubScene: React.FC = () => {
   const { mission5Unlocked } = state.mission4;
   const { endingUnlocked } = state.mission5;
 
-  const localizedDominoAlerts = isSurvival
-    ? getLocalizedDominoAlerts(state.survival, dict)
-    : [];
-  const localizedLastNotice = isSurvival
-    ? formatNoticeDescriptor(
-        state.survival.lastNoticeDescriptor,
-        dict,
-        state.survival.lastActionNotice,
-        translateText
-      )
-    : null;
-
+  // Diálogo diário determinístico por Sol (sem relógio ou watts em tempo real para não causar loop!)
   const survivalCapiLines = [
-    ...(localizedDominoAlerts.length > 0
-      ? [
-          tx(
-            `⚠️ ACTIVE CASCADE ALERT: ${localizedDominoAlerts[0]}`,
-            `⚠️ EFEITO DOMINÓ ATIVO: ${localizedDominoAlerts[0]}`
-          ),
-        ]
-      : []),
-    ...(localizedLastNotice ? [localizedLastNotice] : []),
-    `Sol ${state.survival.sol}/30 • ${clockStr} (${dict.survival.realtime.dayPhase[skyPhase]}) • ${survivalWeather.shortBadge}`,
+    tx(
+      `Sol ${state.survival.sol}/30 — Weather: ${survivalWeather.title}. ${survivalWeather.capiAdvice}`,
+      `Sol ${state.survival.sol}/30 — Clima: ${survivalWeather.title}. ${survivalWeather.capiAdvice}`
+    ),
     earlyWarningText ??
       tx(
-        `Solar: ${solarCalc.outputWatts}W | Hunger: ${state.survival.hunger}% | Thirst: ${state.survival.thirst}% | Dust: ${state.survival.panelDustPct}%. Sleep before 02:00 AM!`,
-        `Solar: ${solarCalc.outputWatts}W | Fome: ${state.survival.hunger}% | Sede: ${state.survival.thirst}% | Poeira: ${state.survival.panelDustPct}%. Durma antes das 02:00!`
+        'Solar peak runs from 11:00 to 14:30. Clear panel dust at the SOLAR AREA and balance battery at night using BREAKERS.',
+        'O pico solar acontece entre 11:00 e 14:30. Limpe os painéis na ÁREA SOLAR e gerencie a bateria à noite nos DISJUNTORES.'
       ),
+    tx(
+      'Click HABITAT to eat, work out, and sleep before 02:00 AM, or click the ROVER to explore sectors across Arcadia Planitia!',
+      'Clique no HABITAT para comer, treinar e dormir antes das 02:00, ou clique no ROVER para explorar os setores de Arcadia Planitia!'
+    ),
   ];
+
+  const trainingStageKey = endingUnlocked
+    ? 'm6_ending'
+    : mission5Unlocked
+    ? 'm5_storms'
+    : mission4Unlocked
+    ? 'm4_greenhouse'
+    : mission3Unlocked
+    ? 'm3_ice'
+    : mission2Unlocked
+    ? 'm2_health'
+    : solarInstalled
+    ? 'm1_installed'
+    : 'm0_start';
 
   const defaultCapiLines = isSurvival
     ? survivalCapiLines
     : endingUnlocked
     ? [
-        'Missão 5 concluída com segurança! Todas as 5 missões científicas em Arcadia Planitia foram finalizadas!',
-        'Clique em "Central de Comunicação (Cena 6)" para enviar o Relatório Geral da Expedição aos cientistas da Terra!',
+        tx(
+          'Mission 5 safely completed! All 5 scientific missions in Arcadia Planitia are finished!',
+          'Missão 5 concluída com segurança! Todas as 5 missões científicas em Arcadia Planitia foram finalizadas!'
+        ),
+        tx(
+          'Open the Explorer Rover (Arcadia Map → West Sector) to send the final Expedition Report to Earth scientists!',
+          'Abra o Rover Explorador (Mapa de Arcadia → Setor Oeste) para enviar o Relatório Geral da Expedição aos cientistas da Terra!'
+        ),
       ]
     : mission5Unlocked
     ? [
-        'ALERTA AMBIENTAL, comandante! Detectamos uma tempestade de poeira e atividade solar em Arcadia Planitia!',
-        'Clique em "Iniciar Missão 5: Tempestades ▶" ou abra o Mapa de Arcadia (Setor Sul) para proteger a base!',
+        tx(
+          'ENVIRONMENTAL ALERT, Commander! We detected a dust storm and solar activity across Arcadia Planitia!',
+          'ALERTA AMBIENTAL, comandante! Detectamos uma tempestade de poeira e atividade solar em Arcadia Planitia!'
+        ),
+        tx(
+          'Open the Explorer Rover (Arcadia Map → South Sector) to start Mission 5 and protect the base!',
+          'Abra o Rover Explorador (Mapa de Arcadia → Setor Sul) para iniciar a Missão 5 e proteger a base!'
+        ),
       ]
     : mission4Unlocked
     ? [
-        'Fantástico, comandante! Temos energia solar, saúde monitorada e reserva de água potável em 100%!',
-        'A Missão 4 (A Primeira Estufa de Marte) já está desbloqueada! Clique no botão verde ou abra o Mapa de Arcadia (Setor Leste)!',
+        tx(
+          'Fantastic, Commander! Solar power is running, health is tracked, and clean water reserves are at 100%!',
+          'Fantástico, comandante! Temos energia solar, saúde monitorada e reserva de água potável em 100%!'
+        ),
+        tx(
+          'Mission 4 (The First Mars Greenhouse) is unlocked! Open the Explorer Rover (East Sector) to grow crops on Mars!',
+          'A Missão 4 (A Primeira Estufa de Marte) já está desbloqueada! Abra o Rover Explorador (Setor Leste) para cultivar em Marte!'
+        ),
       ]
     : mission3Unlocked
     ? [
-        'Incrível, comandante! Energia solar ativa e rotina de saúde em dia no Sol atual!',
-        'Clique em "Iniciar Missão 3: Gelo ▶" ou abra o Mapa de Arcadia (Setor Norte) para investigar gelo subterrâneo!',
+        tx(
+          'Awesome, Commander! Solar array active and health routine complete for this Sol!',
+          'Incrível, comandante! Energia solar ativa e rotina de saúde em dia no Sol atual!'
+        ),
+        tx(
+          'Open the Explorer Rover (Arcadia Map → North Sector) to drill for underground ice in Mission 3!',
+          'Abra o Rover Explorador (Mapa de Arcadia → Setor Norte) para investigar gelo subterrâneo na Missão 3!'
+        ),
       ]
     : mission2Unlocked
     ? [
-        'Nosso sistema solar está funcionando perfeitamente! Agora precisamos cuidar da sua saúde no habitat.',
-        'Clique no Habitat Principal ou em "Iniciar Missão 2: Saúde ▶" para começar a rotina de treino, comida e sono!',
+        tx(
+          'Our solar array is running smoothly! Now we need to take care of your health inside the Habitat.',
+          'Nosso sistema solar está funcionando perfeitamente! Agora precisamos cuidar da sua saúde no habitat.'
+        ),
+        tx(
+          'Click the Habitat building on the left to start your exercise, nutrition, hygiene, and sleep routine!',
+          'Clique no Habitat à esquerda para começar a rotina de treino, alimentação, higiene e sono!'
+        ),
       ]
     : solarInstalled
     ? [
-        'Nossos painéis solares estão instalados na área leste! Continue os testes e o registro no Diário.',
-        'Clique na Área Solar ou em "Abrir Painel da Missão 1" para concluir e liberar a Missão 2!',
+        tx(
+          'Our solar panels are installed on the east plot! Finish system tests and logbook entry.',
+          'Nossos painéis solares estão instalados na área leste! Continue os testes e o registro no Diário.'
+        ),
+        tx(
+          'Click the Solar Area on the right to finish Mission 1 and unlock the Habitat!',
+          'Clique na Área Solar à direita para concluir a Missão 1 e liberar a Missão 2!'
+        ),
       ]
     : [
-        'Bem-vindo à nossa Base em Arcadia Planitia, comandante! Tudo está pronto para a Missão 1.',
-        'Nosso objetivo será instalar os painéis solares calculando a posição do Sol com o sistema Mars24 da NASA.',
-        'Clique em "Iniciar Missão 1: Energia Solar" ou direto na Área Solar marcada no terreno!',
+        tx(
+          'Welcome to our Base in Arcadia Planitia, Commander! Everything is ready for Mission 1.',
+          'Bem-vindo à nossa Base em Arcadia Planitia, comandante! Tudo está pronto para a Missão 1.'
+        ),
+        tx(
+          'Our goal is to install the solar panels using NASA Mars24 solar geometry.',
+          'Nosso objetivo será instalar os painéis solares calculando a posição do Sol com o sistema Mars24 da NASA.'
+        ),
+        tx(
+          'Click the Solar Area marked on the Martian ground to get started!',
+          'Clique direto na Área Solar marcada no terreno marciano para começar!'
+        ),
       ];
 
   const getLockedMissionHint = (missionId: string) => {
     switch (missionId) {
       case 'MISSION_2':
-        return 'O Habitat precisa de energia elétrica primeiro! Conclua a Missão 1 (Energia Solar) e durma na etapa final para liberar a Missão 2.';
+        return tx(
+          'The Habitat needs electrical power first! Complete Mission 1 (Solar Power) and sleep at the end to unlock Mission 2.',
+          'O Habitat precisa de energia elétrica primeiro! Conclua a Missão 1 (Energia Solar) e durma na etapa final para liberar a Missão 2.'
+        );
       case 'MISSION_3':
-        return 'Conclua a Missão 2 (Cuidando do Astronauta) e finalize o relatório do sono para liberar a Missão 3 — O Mistério do Gelo!';
+        return tx(
+          'Complete Mission 2 (Caring for the Astronaut) and finish the sleep report to unlock Mission 3 — The Mystery of Mars Ice!',
+          'Conclua a Missão 2 (Cuidando do Astronauta) e finalize o relatório do sono para liberar a Missão 3 — O Mistério do Gelo!'
+        );
       case 'MISSION_4':
-        return 'Conclua a Missão 3 (Gelo e Água Potável) para abastecer a base e liberar a Missão 4 — A Primeira Estufa de Marte!';
+        return tx(
+          'Complete Mission 3 (Ice & Clean Water) to supply the base and unlock Mission 4 — The First Mars Greenhouse!',
+          'Conclua a Missão 3 (Gelo e Água Potável) para abastecer a base e liberar a Missão 4 — A Primeira Estufa de Marte!'
+        );
       case 'MISSION_5':
-        return 'Conclua a Missão 4 (A Primeira Estufa de Marte) para liberar a Missão 5 — Alerta! Tempestades em Marte!';
+        return tx(
+          'Complete Mission 4 (The First Mars Greenhouse) to unlock Mission 5 — Alert! Mars Storms!',
+          'Conclua a Missão 4 (A Primeira Estufa de Marte) para liberar a Missão 5 — Alerta! Tempestades em Marte!'
+        );
       default:
-        return 'Complete as missões anteriores na ordem para desbloquear esta etapa.';
+        return tx(
+          'Complete earlier missions in order to unlock this stage.',
+          'Complete as missões anteriores na ordem para desbloquear esta etapa.'
+        );
     }
   };
 
@@ -184,6 +235,11 @@ const BaseHubScene: React.FC = () => {
       : null;
 
   const capiLines = resolvedFeedbackLine ? [resolvedFeedbackLine] : defaultCapiLines;
+  const activeDialogId = resolvedFeedbackLine
+    ? undefined
+    : isSurvival
+    ? `intro_survival_sol${state.survival.sol}`
+    : `training_hub_${trainingStageKey}`;
 
   const tryOpenSurvivalStation = (stationId: SurvivalStationId) => {
     if (isSurvival) {
@@ -476,7 +532,14 @@ const BaseHubScene: React.FC = () => {
         </div>
       </div>
 
-      <CapiAssistant lines={capiLines} compact />
+      <CapiAssistant
+        dialogId={activeDialogId}
+        lines={capiLines}
+        onDismiss={() => {
+          if (resolvedFeedbackLine) setHubFeedback(null);
+        }}
+        compact
+      />
       <SurvivalResultOverlay />
     </section>
   );

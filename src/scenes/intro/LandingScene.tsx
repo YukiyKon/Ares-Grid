@@ -107,6 +107,7 @@ export const LandingScene: React.FC = () => {
       </div>
 
       <CapiAssistant
+        dialogId="intro_landing_briefing"
         lines={CAPI_LANDING_LINES}
         onComplete={handleStartMission1}
         completeLabel="Missão 1 ▶"
