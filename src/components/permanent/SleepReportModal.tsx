@@ -114,10 +114,10 @@ export const SleepReportModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-3 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 p-3 backdrop-blur-md transition-opacity duration-500"
       role="dialog"
       aria-modal="true"
-      aria-label="Rotina de Sono e Relatório da Capi"
+      aria-label="Cena Especial: A Capivara Durante o Sono"
     >
       <div className="pixel-box relative w-full max-w-2xl overflow-hidden bg-slate-950 text-slate-100">
         {/* Cabeçalho */}
@@ -125,7 +125,7 @@ export const SleepReportModal: React.FC = () => {
           <div className="flex items-center gap-2">
             <Moon className="h-5 w-5 text-indigo-300" />
             <h2 className="font-pixel text-[11px] text-indigo-200 sm:text-xs">
-              ROTINA DE SONO DA CAPI — ETAPA {step}/7
+              A CAPIVARA DURANTE O SONO — ETAPA {step}/7
             </h2>
           </div>
           <button
@@ -168,9 +168,11 @@ export const SleepReportModal: React.FC = () => {
           <div className="rounded-sm border-2 border-slate-800 bg-slate-900/90 p-3 font-dialog text-xs">
             {step === 1 && (
               <div className="space-y-2">
-                <p className="rounded-sm border border-amber-500/50 bg-amber-950/40 p-2 text-[11px] text-amber-200">
-                  Aviso educativo: Dados simulados para fins pedagógicos. Não representam
-                  medições clínicas reais (inspirado em NASA Spaceflight Standard Measures).
+                <p className="rounded-sm border border-amber-500/60 bg-amber-950/50 p-2 text-[11px] text-amber-100">
+                  <strong>Aviso educativo:</strong> Dados simulados para fins educativos. Não
+                  representam medições clínicas reais. Referência científica:{' '}
+                  <strong>NASA Spaceflight Standard Measures</strong> (actigrafia e
+                  questionários de sono e adaptação).
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-sm bg-slate-950 p-2">
@@ -287,6 +289,19 @@ export const SleepReportModal: React.FC = () => {
                     ? 'CONEXÃO ESTABELECIDA: Dados recebidos pela Central Terrestre!'
                     : 'TRANSMISSÃO PENDENTE: Dados preservados com segurança no servidor da nave.'}
                 </p>
+                {state.mission3.mission4Unlocked ? (
+                  <p className="rounded-sm border border-emerald-400/60 bg-emerald-950/70 px-2 py-1 text-xs text-emerald-100">
+                    🌱 Missão 3 concluída! A <strong>Missão 4 — A Primeira Estufa de Marte</strong> foi desbloqueada!
+                  </p>
+                ) : state.mission2.mission3Unlocked ? (
+                  <p className="rounded-sm border border-cyan-400/60 bg-cyan-950/70 px-2 py-1 text-xs text-cyan-100">
+                    🧊 Missão 2 concluída! A <strong>Missão 3 — O Mistério do Gelo de Marte</strong> foi desbloqueada!
+                  </p>
+                ) : state.mission1.mission2Unlocked ? (
+                  <p className="rounded-sm border border-emerald-400/60 bg-emerald-950/70 px-2 py-1 text-xs text-emerald-100">
+                    🎉 Missão 1 concluída! A <strong>Missão 2 — Cuidando do Astronauta</strong> foi desbloqueada!
+                  </p>
+                ) : null}
                 <p className="text-xs text-slate-300">
                   Novo dia iniciado em Arcadia Planitia: <strong>Sol {state.stats.sol}</strong>.
                 </p>

@@ -27,7 +27,7 @@ export const LandingScene: React.FC = () => {
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-44 sm:pb-36">
+    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-52 sm:pb-44">
       <div className="pixel-box-mars relative overflow-hidden bg-slate-950">
         <div className="relative aspect-video w-full overflow-hidden bg-orange-950">
           {!imgError ? (

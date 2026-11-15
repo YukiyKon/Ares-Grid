@@ -60,7 +60,7 @@ export const CustomizeScene: React.FC = () => {
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-44 sm:pb-36">
+    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-52 sm:pb-44">
       <div className="pixel-box-mars overflow-hidden bg-slate-950 p-4 sm:p-5">
         <div className="mb-4 flex items-center justify-between border-b-2 border-orange-500/40 pb-2.5">
           <div className="flex items-center gap-2">

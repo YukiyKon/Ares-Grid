@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, MessageSquare, Sparkles } from 'lucide-react';
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { soundEngine } from '../../core/soundEngine';
 
@@ -20,6 +20,7 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
 }) => {
   const [stepIndex, setStepIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const [minimized, setMinimized] = useState(false);
 
   const safeLines = lines.length > 0 ? lines : ['Olá, comandante! Estou pronta para ajudar.'];
   const currentText = safeLines[Math.min(stepIndex, safeLines.length - 1)];
@@ -29,6 +30,7 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
   const linesSignature = safeLines.join('|');
   useEffect(() => {
     setStepIndex(0);
+    setMinimized(false);
   }, [linesSignature]);
 
   const handleNext = () => {
@@ -48,6 +50,32 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
     }
   };
 
+  if (minimized) {
+    return (
+      <aside
+        aria-label="Botão para reabrir janela da Capivara Capi"
+        className="fixed bottom-2 right-2 z-40"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            soundEngine.playClick();
+            setMinimized(false);
+          }}
+          className="pixel-box flex items-center gap-1.5 bg-slate-950/95 px-2.5 py-1 text-cyan-200 hover:bg-slate-900"
+        >
+          <img
+            src={ASSET_MANIFEST.capiPortrait.path}
+            alt="Capi"
+            className="pixel-art h-6 w-6 object-contain"
+          />
+          <MessageSquare className="h-3 w-3 text-cyan-300" />
+          <span className="font-pixel text-[8px]">CAPI</span>
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside
       aria-label="Janela holográfica da Capivara Capi"
@@ -66,9 +94,23 @@ export const CapiAssistant: React.FC<CapiAssistantProps> = ({
               {badge}
             </span>
           </div>
-          <span className="font-dialog text-[11px] text-cyan-300/90">
-            {stepIndex + 1}/{safeLines.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-dialog text-[11px] text-cyan-300/90">
+              {stepIndex + 1}/{safeLines.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playClick();
+                setMinimized(true);
+              }}
+              aria-label="Minimizar janela da Capi"
+              title="Minimizar janela"
+              className="rounded-sm border border-cyan-700/70 bg-slate-900 px-1 py-0.5 text-cyan-300 hover:bg-slate-800"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Conteúdo: retrato pixelado + balão curto (2-3 linhas) */}

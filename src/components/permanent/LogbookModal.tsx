@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, Camera, CheckCircle2, Cloud, HardDrive, X } from 'lucide-react';
 import { type GameSceneId, useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { AZIMUTH_LABELS, SEASON_INFO } from '../../missions/mission1-solar/mars24SolarMath';
 
 function buildPixelPhotoDataUrl(
   scene: GameSceneId,
   astronautName: string,
   sol: number,
-  eventTitle: string
+  eventTitle: string,
+  solarInstalled: boolean
 ): string {
   const canvas = document.createElement('canvas');
   canvas.width = 320;
@@ -17,18 +19,15 @@ function buildPixelPhotoDataUrl(
 
   ctx.imageSmoothingEnabled = false;
 
-  // Fundo temático por cena
   if (scene === 'LAUNCH' || scene === 'CAPI_INTRO' || scene === 'CUSTOMIZE') {
     ctx.fillStyle = '#070b1a';
     ctx.fillRect(0, 0, 320, 180);
-    // Estrelas
     ctx.fillStyle = '#ffffff';
     for (let i = 0; i < 40; i++) {
       const sx = (i * 47 + sol * 13) % 312;
       const sy = (i * 29 + 11) % 100;
       ctx.fillRect(sx, sy, 2, 2);
     }
-    // Terra azul
     ctx.fillStyle = '#0284c7';
     ctx.beginPath();
     ctx.arc(160, 195, 110, Math.PI, 0);
@@ -37,7 +36,6 @@ function buildPixelPhotoDataUrl(
     ctx.fillRect(95, 115, 45, 22);
     ctx.fillRect(175, 108, 52, 26);
   } else {
-    // Céu marciano e solo de Arcadia Planitia
     ctx.fillStyle = '#9a3412';
     ctx.fillRect(0, 0, 320, 48);
     ctx.fillStyle = '#c2410c';
@@ -47,34 +45,62 @@ function buildPixelPhotoDataUrl(
     ctx.fillStyle = '#7c2d12';
     ctx.fillRect(0, 118, 320, 62);
 
-    // Sol marciano
     ctx.fillStyle = '#fef3c7';
     ctx.fillRect(256, 22, 16, 16);
 
-    // Habitat científico simplificado
     ctx.fillStyle = '#e2e8f0';
-    ctx.fillRect(42, 86, 84, 38);
+    ctx.fillRect(34, 86, 84, 38);
     ctx.fillStyle = '#f97316';
-    ctx.fillRect(42, 108, 84, 7);
+    ctx.fillRect(34, 108, 84, 7);
     ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(54, 94, 16, 10);
-    ctx.fillRect(98, 94, 16, 10);
+    ctx.fillRect(46, 94, 16, 10);
+    ctx.fillRect(90, 94, 16, 10);
 
-    // Pedestal aguardando painel solar
-    ctx.fillStyle = '#64748b';
-    ctx.fillRect(206, 112, 12, 14);
-    ctx.fillStyle = '#facc15';
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(184, 118, 58, 18);
+    // Painéis solares instalados ou área demarcada
+    if (scene === 'MISSION_3') {
+      // Perfuradora e testemunho de gelo azul-ciano no Setor Gama
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(190, 96, 10, 34);
+      ctx.fillRect(236, 96, 10, 34);
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(184, 72, 68, 26);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(212, 80, 12, 54);
+      // Tubo de amostra de gelo (ice core)
+      ctx.fillStyle = '#c2410c';
+      ctx.fillRect(268, 92, 16, 18);
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillRect(268, 110, 16, 20);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(268, 92, 16, 38);
+    } else if (solarInstalled || scene === 'MISSION_1') {
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(192, 114, 6, 16);
+      ctx.fillRect(244, 114, 6, 16);
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fillRect(172, 86, 96, 30);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(172, 86, 96, 9);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(172, 86, 96, 30);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(216, 120, 8, 8);
+    } else {
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(206, 112, 12, 14);
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(184, 118, 58, 18);
+    }
   }
 
-  // Mira fotográfica científica + telemetria
   ctx.strokeStyle = 'rgba(34, 211, 238, 0.85)';
   ctx.lineWidth = 2;
   ctx.strokeRect(8, 8, 304, 164);
 
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.82)';
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
   ctx.fillRect(8, 146, 304, 26);
   ctx.fillStyle = '#67e8f9';
   ctx.font = 'bold 10px monospace';
@@ -110,18 +136,70 @@ const SCENE_SUGGESTIONS: Record<GameSceneId, { event: string; aspect: string }> 
     event: 'Inspeção inicial da Base em Arcadia Planitia',
     aspect: 'Habitat e rover prontos; área solar demarcada aguardando Missão 1.',
   },
+  MISSION_1: {
+    event: 'Instalação e ativação dos painéis solares',
+    aspect: 'Local nivelado Ponto C escolhido, inclinação Mars24 calculada e energia estável.',
+  },
+  MISSION_2: {
+    event: 'Rotina de saúde do astronauta concluída',
+    aspect: 'Exercícios no habitat, refeição equilibrada sem desperdício de água e higiene realizados.',
+  },
+  MISSION_3: {
+    event: 'Descoberta de gelo subterrâneo e tratamento de água em Arcadia Planitia',
+    aspect: 'Radar SHARAD + HiRISE indicaram o Setor Gama; amostra congelada a 2,2 m filtrada, tratada e aprovada nos 5 testes de potabilidade.',
+  },
 };
 
 export const LogbookModal: React.FC = () => {
   const { state, openModal, addLogbookEntry } = useGameStore();
-  const suggestion = SCENE_SUGGESTIONS[state.currentScene];
+  const isOpen = state.activeModal === 'LOGBOOK';
 
-  const [eventText, setEventText] = useState(suggestion.event);
-  const [aspectText, setAspectText] = useState(suggestion.aspect);
+  const [eventText, setEventText] = useState('');
+  const [aspectText, setAspectText] = useState('');
   const [capturedPhoto, setCapturedPhoto] = useState<string>('');
   const [savedFeedback, setSavedFeedback] = useState(false);
 
-  if (state.activeModal !== 'LOGBOOK') return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    if (state.currentScene === 'MISSION_3') {
+      const m3 = state.mission3;
+      setEventText('Descoberta de gelo no Setor Gama e purificação de água potável');
+      setAspectText(
+        `Análise orbital (HiRISE, SHARAD e First Ice Cores) confirmou gelo a 2,2 m no Setor ${
+          m3.selectedSector ?? 'GAMMA'
+        }. Amostra separada, derretida, filtrada e ${
+          m3.waterApproved ? 'aprovada nos 5 testes de potabilidade.' : 'em validação química.'
+        }`
+      );
+    } else if (state.currentScene === 'MISSION_2') {
+      const m2 = state.mission2;
+      setEventText('Rotina diária de saúde no Habitat de Arcadia Planitia');
+      setAspectText(
+        `Treinos: ${m2.exercisesCompleted.length}/4 concluídos. Refeição: ${m2.selectedProtein ?? 'proteína'}, ${m2.selectedVeggie ?? 'vegetais'} e ${m2.selectedCarb ?? 'carboidrato'} com 350 ml de água. Higiene verificada.`
+      );
+    } else if (state.currentScene === 'MISSION_1' || state.stats.solarInstalled) {
+      const m1 = state.mission1;
+      setEventText('Instalação e ativação dos painéis solares em Arcadia Planitia');
+      setAspectText(
+        `Local: Ponto C (planície livre de sombras). Estação: ${SEASON_INFO[m1.season].label}. Orientação ${AZIMUTH_LABELS[m1.panelAzimuth]}, inclinação ${m1.panelTiltDeg}° gerando ${m1.generatedWatts || 480} W no painel de controle.`
+      );
+    } else {
+      const suggestion = SCENE_SUGGESTIONS[state.currentScene];
+      setEventText(suggestion.event);
+      setAspectText(suggestion.aspect);
+    }
+    setCapturedPhoto('');
+    setSavedFeedback(false);
+  }, [
+    isOpen,
+    state.currentScene,
+    state.stats.solarInstalled,
+    state.mission1,
+    state.mission2,
+    state.mission3,
+  ]);
+
+  if (!isOpen) return null;
 
   const handleCapturePhoto = () => {
     soundEngine.playCameraShutter();
@@ -129,7 +207,8 @@ export const LogbookModal: React.FC = () => {
       state.currentScene,
       state.astronaut.name,
       state.stats.sol,
-      eventText
+      eventText,
+      state.stats.solarInstalled
     );
     setCapturedPhoto(dataUrl);
   };
@@ -195,10 +274,10 @@ export const LogbookModal: React.FC = () => {
               <input
                 type="text"
                 required
-                maxLength={90}
+                maxLength={100}
                 value={eventText}
                 onChange={(e) => setEventText(e.target.value)}
-                placeholder="Ex.: Pouso em Arcadia Planitia"
+                placeholder="Ex.: Instalação e ativação dos painéis solares"
                 className="w-full rounded-sm border-2 border-slate-700 bg-slate-900 px-3 py-2 font-dialog text-xs text-white focus:border-cyan-400 focus:outline-none"
               />
             </div>
@@ -210,7 +289,7 @@ export const LogbookModal: React.FC = () => {
               <textarea
                 required
                 rows={3}
-                maxLength={220}
+                maxLength={240}
                 value={aspectText}
                 onChange={(e) => setAspectText(e.target.value)}
                 placeholder="O que você observou no ambiente ou nos equipamentos?"

@@ -44,7 +44,9 @@ export const MISSION_REGISTRY: MissionDefinition[] = [
       'Investigar como o ambiente espacial influencia o organismo humano e aplicar rotinas simuladas de cuidado e descanso.',
     nasaReference: 'NASA Spaceflight Standard Measures (Actigrafia e Questionários)',
     challengesPreview: [
-      'Disponível após concluir a Missão 1 (Etapa 3 do desenvolvimento).',
+      'Desafio 2.1: Exercícios físicos contra a baixa gravidade',
+      'Desafio 2.2 e 2.3: Refeição equilibrada, hidratação e higiene',
+      'Desafio 2.4: Cena Especial da Capivara Durante o Sono (7 etapas)',
     ],
   },
   {
@@ -57,7 +59,9 @@ export const MISSION_REGISTRY: MissionDefinition[] = [
       'Analisar camadas de radar orbital, estudos prévios e realizar pequenas perfurações exploratórias em busca de gelo subterrâneo.',
     nasaReference: 'NASA First Ice Cores from Mars & MRO SHARAD',
     challengesPreview: [
-      'Disponível nas próximas etapas de desenvolvimento.',
+      'Desafio 3.1 e 3.2: Camadas HiRISE, Radar SHARAD e Estudos Prévios',
+      'Desafio 3.3 e 3.4: Perfuração exploratória e coleta de ice core',
+      'Desafio 3.5 e 3.6: Filtragem, tratamento e painel de potabilidade',
     ],
   },
   {

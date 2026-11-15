@@ -21,7 +21,7 @@ export const CapiIntroScene: React.FC = () => {
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-44 sm:pb-36">
+    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-52 sm:pb-44">
       <div className="pixel-box overflow-hidden bg-slate-950 p-5 hologram-grid">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b-2 border-cyan-500/40 pb-3">
           <div className="flex items-center gap-2">

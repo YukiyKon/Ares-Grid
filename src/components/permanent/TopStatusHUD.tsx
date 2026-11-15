@@ -20,6 +20,9 @@ const SCENE_SHORT_LABELS: Record<GameSceneId, string> = {
   CUSTOMIZE: '3.1 Traje',
   LANDING: '4. Pouso',
   BASE_HUB: 'Base Arcadia',
+  MISSION_1: 'Missão 1: Solar',
+  MISSION_2: 'Missão 2: Saúde',
+  MISSION_3: 'Missão 3: Gelo e Água',
 };
 
 export const TopStatusHUD: React.FC = () => {
