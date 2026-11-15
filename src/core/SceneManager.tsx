@@ -187,7 +187,7 @@ const BaseHubScene: React.FC = () => {
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-52 sm:pb-44">
       {/* Cenário limpo da Base em Arcadia Planitia */}
       <div className="pixel-box-mars relative overflow-hidden bg-slate-950">
-        <div className="relative aspect-video w-full overflow-hidden bg-orange-950">
+        <div className="relative aspect-[4/3] min-h-[245px] w-full overflow-hidden bg-orange-950 sm:aspect-video">
           {!imgError ? (
             <img
               src={ASSET_MANIFEST.bgArcadiaBase.path}
@@ -214,20 +214,20 @@ const BaseHubScene: React.FC = () => {
               }
             }}
             aria-disabled={!isSurvival && !mission2Unlocked}
-            className={`absolute left-[10%] top-[34%] rounded-sm border-2 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition hover:scale-105 ${
+            className={`absolute left-[3%] top-[8%] min-h-[40px] rounded-sm border-2 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:left-[10%] sm:top-[34%] sm:px-2.5 ${
               isSurvival || mission2Unlocked
                 ? 'cursor-pointer border-cyan-300'
                 : 'cursor-pointer border-slate-500/80 opacity-90'
             }`}
           >
             <span
-              className={`block font-pixel text-[8px] ${
+              className={`block font-pixel text-[7px] sm:text-[8px] ${
                 isSurvival || mission2Unlocked ? 'text-cyan-300' : 'text-slate-300'
               }`}
             >
               HABITAT
             </span>
-            <span className="font-dialog text-[11px] text-slate-200">
+            <span className="font-dialog text-[10px] text-slate-200 sm:text-[11px]">
               {isSurvival
                 ? 'Saúde & Treino (-1 Turno) ▶'
                 : mission2Completed
@@ -239,9 +239,12 @@ const BaseHubScene: React.FC = () => {
           </button>
 
           {/* 2. Astronauta personalizado (centro-esquerda) */}
-          <div className="absolute bottom-[10%] left-[29%] flex flex-col items-center">
+          <div className="absolute bottom-[7%] left-[5%] flex flex-col items-center sm:bottom-[10%] sm:left-[29%]">
             <AstronautAvatar profile={state.astronaut} size="md" />
-            <span className="mt-1 rounded-sm border border-cyan-400/70 bg-slate-950/90 px-1.5 py-0.5 font-pixel text-[8px] text-cyan-200">
+            <span
+              data-no-i18n="true"
+              className="mt-1 max-w-[92px] truncate rounded-sm border border-cyan-400/70 bg-slate-950/90 px-1.5 py-0.5 font-pixel text-[7px] text-cyan-200 sm:max-w-none sm:text-[8px]"
+            >
               {state.astronaut.name}
             </span>
           </div>
@@ -253,13 +256,13 @@ const BaseHubScene: React.FC = () => {
               soundEngine.playClick();
               openModal('ARCADIA_MAP');
             }}
-            className="absolute bottom-[14%] left-[46%] rounded-sm border-2 border-amber-300 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition hover:scale-105"
+            className="absolute bottom-[8%] left-[48%] min-h-[40px] -translate-x-1/2 rounded-sm border-2 border-amber-300 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:bottom-[14%] sm:left-[46%] sm:translate-x-0 sm:px-2.5"
           >
-            <span className="inline-flex items-center gap-1 font-pixel text-[8px] text-amber-300">
-              <Map className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 font-pixel text-[7px] text-amber-300 sm:text-[8px]">
+              <Map className="h-3 w-3 shrink-0" />
               ROVER EXPLORADOR
             </span>
-            <span className="block font-dialog text-[11px] text-slate-200">
+            <span className="block font-dialog text-[10px] text-slate-200 sm:text-[11px]">
               🗺️ Mapa de Arcadia ▶
             </span>
           </button>
@@ -268,7 +271,7 @@ const BaseHubScene: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenMission1}
-            className="group absolute bottom-[11%] right-[6%] flex flex-col items-center transition hover:scale-105"
+            className="group absolute bottom-[7%] right-[3%] flex flex-col items-center transition hover:scale-105 sm:bottom-[11%] sm:right-[6%]"
           >
             {isSurvival || solarInstalled ? (
               <img
@@ -278,13 +281,13 @@ const BaseHubScene: React.FC = () => {
                     : ASSET_MANIFEST.solarPanelClean.path
                 }
                 alt={ASSET_MANIFEST.solarPanelClean.alt}
-                className="pixel-art h-24 w-24 drop-shadow-[0_6px_12px_rgba(0,0,0,0.6)]"
+                className="pixel-art h-14 w-14 drop-shadow-[0_6px_12px_rgba(0,0,0,0.6)] sm:h-24 sm:w-24"
               />
             ) : (
-              <div className="mb-1 h-14 w-24 rounded-sm border-2 border-dashed border-amber-300 bg-amber-500/20 group-hover:bg-amber-400/30" />
+              <div className="mb-1 h-10 w-16 rounded-sm border-2 border-dashed border-amber-300 bg-amber-500/20 group-hover:bg-amber-400/30 sm:h-14 sm:w-24" />
             )}
             <span
-              className={`rounded-sm border-2 px-2.5 py-1 text-center shadow-lg ${
+              className={`rounded-sm border-2 px-1.5 py-0.5 text-center shadow-lg sm:px-2.5 sm:py-1 ${
                 isSurvival
                   ? state.survival.panelDustPct >= 40
                     ? 'border-orange-300 bg-slate-950/95 text-orange-300'
@@ -294,14 +297,14 @@ const BaseHubScene: React.FC = () => {
                     : 'border-amber-300 bg-slate-950/95 text-amber-300'
               }`}
             >
-              <span className="block font-pixel text-[8px]">
+              <span className="block font-pixel text-[6.5px] sm:text-[8px]">
                 {isSurvival
                   ? `PAINÉIS (${state.survival.panelDustPct}% POEIRA)`
                   : solarInstalled
                     ? `PAINÉIS ATIVOS (${state.mission1.generatedWatts || 480} W)`
                     : 'ÁREA SOLAR (MISSÃO 1)'}
               </span>
-              <span className="font-dialog text-[11px] text-slate-200">
+              <span className="font-dialog text-[10px] text-slate-200 sm:text-[11px]">
                 {isSurvival
                   ? 'Limpar poeira (-1 Turno) ▶'
                   : solarInstalled

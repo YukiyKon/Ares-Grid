@@ -77,7 +77,7 @@ export const CustomizeScene: React.FC = () => {
           <div className="flex flex-col items-center justify-between rounded-sm border-2 border-slate-800 bg-slate-900/90 p-4 hologram-grid">
             <div className="text-center">
               <span className="font-pixel text-[9px] text-cyan-300">PRÉVIA DO TRAJE</span>
-              <p className="mt-1 font-dialog text-sm font-bold text-white">
+              <p data-no-i18n="true" className="mt-1 font-dialog text-sm font-bold text-white">
                 {state.astronaut.name || 'Comandante'}
               </p>
             </div>

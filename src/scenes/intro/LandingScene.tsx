@@ -29,30 +29,33 @@ export const LandingScene: React.FC = () => {
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-52 sm:pb-44">
       <div className="pixel-box-mars relative overflow-hidden bg-slate-950">
-        <div className="relative aspect-video w-full overflow-hidden bg-orange-950">
+        <div className="relative min-h-[300px] w-full overflow-hidden bg-orange-950 sm:aspect-video">
           {!imgError ? (
             <img
               src={ASSET_MANIFEST.bgMarsLanding.path}
               alt={ASSET_MANIFEST.bgMarsLanding.alt}
               onError={() => setImgError(true)}
-              className="pixel-art h-full w-full object-cover"
+              className="pixel-art absolute inset-0 h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-orange-950 font-pixel text-xs text-orange-200">
+            <div className="flex h-full min-h-[300px] w-full items-center justify-center bg-orange-950 font-pixel text-xs text-orange-200">
               {ASSET_MANIFEST.bgMarsLanding.fallbackLabel}
             </div>
           )}
 
           {/* Avatar do astronauta personalizado pousando */}
-          <div className="absolute bottom-4 left-6 flex items-end gap-2">
+          <div className="absolute bottom-3 left-4 flex items-end gap-2 sm:bottom-4 sm:left-6">
             <AstronautAvatar profile={state.astronaut} size="md" />
-            <span className="rounded-sm border border-orange-400 bg-slate-950/90 px-2 py-0.5 font-pixel text-[8px] text-orange-200">
+            <span
+              data-no-i18n="true"
+              className="rounded-sm border border-orange-400 bg-slate-950/90 px-2 py-0.5 font-pixel text-[8px] text-orange-200"
+            >
               {state.astronaut.name}
             </span>
           </div>
 
           {/* Painel do Sistema da Espaçonave no Pouso */}
-          <div className="absolute left-4 top-4 w-[calc(100%-2rem)] max-w-lg rounded-sm border-2 border-orange-400 bg-slate-950/92 p-3.5 shadow-xl">
+          <div className="absolute left-3 top-3 w-[calc(100%-1.5rem)] max-w-lg rounded-sm border-2 border-orange-400 bg-slate-950/92 p-3 shadow-xl sm:left-4 sm:top-4 sm:w-[calc(100%-2rem)] sm:p-3.5">
             <div className="mb-2 flex items-center gap-2 border-b border-orange-500/40 pb-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               <span className="font-pixel text-[9px] text-orange-300">
@@ -96,7 +99,7 @@ export const LandingScene: React.FC = () => {
         <button
           type="button"
           onClick={handleStartMission1}
-          className="pixel-btn inline-flex items-center gap-2 bg-amber-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-amber-300"
+          className="pixel-btn inline-flex min-h-[44px] items-center gap-2 bg-amber-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-amber-300"
         >
           <SunMedium className="h-4 w-4" />
           Iniciar Missão 1: Energia Solar

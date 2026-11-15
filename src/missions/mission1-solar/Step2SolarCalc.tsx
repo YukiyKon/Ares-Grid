@@ -123,9 +123,11 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
       {/* Fala inicial do jogador */}
       <div className="rounded-sm border-2 border-cyan-500/50 bg-slate-900/90 p-3">
         <p className="font-dialog text-xs text-cyan-100">
-          <strong className="text-orange-300">{state.astronaut.name}:</strong> &ldquo;Capi,
-          escolhemos o Ponto C, mas qual é a inclinação correta dos painéis? Você pode
-          calcular usando o sistema Mars24 da NASA?&rdquo;
+          <strong data-no-i18n="true" className="text-orange-300">
+            {state.astronaut.name}:
+          </strong>{' '}
+          &ldquo;Capi, escolhemos o Ponto C, mas qual é a inclinação correta dos painéis?
+          Você pode calcular usando o sistema Mars24 da NASA?&rdquo;
         </p>
       </div>
 
@@ -198,7 +200,7 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
           </div>
 
           {/* Saída do cálculo Mars24 */}
-          <div className="grid grid-cols-3 gap-2 rounded-sm border border-cyan-500/40 bg-slate-900/95 p-2.5 text-center font-dialog">
+          <div className="grid grid-cols-1 gap-2 rounded-sm border border-cyan-500/40 bg-slate-900/95 p-2.5 text-center font-dialog sm:grid-cols-3">
             <div>
               <span className="block text-[10px] text-slate-400">Elevação Solar (h)</span>
               <strong className="text-sm text-amber-300">{calc.elevationDeg}°</strong>
@@ -368,7 +370,7 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
               }}
               className="w-full accent-cyan-400"
             />
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {AZIMUTH_ORDER.map((az) => (
                 <button
                   key={az}
@@ -377,7 +379,7 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
                     soundEngine.playClick();
                     updateMission1({ panelAzimuth: az });
                   }}
-                  className={`rounded-sm border py-1 font-dialog text-[11px] ${
+                  className={`min-h-[38px] rounded-sm border px-2 py-1 font-dialog text-[11px] ${
                     panelAzimuth === az
                       ? 'border-cyan-400 bg-cyan-950 text-cyan-100'
                       : 'border-slate-700 bg-slate-950 text-slate-400'

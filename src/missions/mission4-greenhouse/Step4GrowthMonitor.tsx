@@ -421,7 +421,7 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
                       soundEngine.playClick();
                       updateMission4({ envSettings: { ...envSettings, light: lvl } });
                     }}
-                    className={`rounded-sm border px-2 py-1.5 ${
+                    className={`min-h-[40px] rounded-sm border px-1.5 py-1.5 text-[11px] sm:px-2 sm:text-xs ${
                       envSettings.light === lvl
                         ? lvl === 'IDEAL'
                           ? 'border-emerald-400 bg-emerald-950/70 text-emerald-100'
@@ -458,7 +458,7 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
                         envSettings: { ...envSettings, waterNutrient: lvl },
                       });
                     }}
-                    className={`rounded-sm border px-2 py-1.5 ${
+                    className={`min-h-[40px] rounded-sm border px-1.5 py-1.5 text-[11px] sm:px-2 sm:text-xs ${
                       envSettings.waterNutrient === lvl
                         ? lvl === 'IDEAL'
                           ? 'border-emerald-400 bg-emerald-950/70 text-emerald-100'
@@ -495,7 +495,7 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
                         envSettings: { ...envSettings, tempHumidity: lvl },
                       });
                     }}
-                    className={`rounded-sm border px-2 py-1.5 ${
+                    className={`min-h-[40px] rounded-sm border px-1.5 py-1.5 text-[11px] sm:px-2 sm:text-xs ${
                       envSettings.tempHumidity === lvl
                         ? lvl === 'IDEAL'
                           ? 'border-emerald-400 bg-emerald-950/70 text-emerald-100'

@@ -12,8 +12,14 @@ import { ArcadiaRegionalMapCanvas } from '../../components/permanent/ArcadiaMapM
 import { CapiAssistant } from '../../components/permanent/CapiAssistant';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { type Language, useLanguage } from '../../i18n/LanguageContext';
 
-function downloadExpeditionCertificate(astronautName: string, sol: number, logsCount: number) {
+function downloadExpeditionCertificate(
+  astronautName: string,
+  sol: number,
+  logsCount: number,
+  lang: Language
+) {
   const canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 500;
@@ -42,15 +48,31 @@ function downloadExpeditionCertificate(astronautName: string, sol: number, logsC
   ctx.fillStyle = '#fbbf24';
   ctx.font = 'bold 26px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('ARCADIA PLANITIA — MISSAO CIENTIFICA EM MARTE', 400, 92);
+  ctx.fillText(
+    lang === 'en'
+      ? 'ARCADIA PLANITIA — MARS SCIENCE MISSION'
+      : 'ARCADIA PLANITIA — MISSAO CIENTIFICA EM MARTE',
+    400,
+    92
+  );
 
   ctx.fillStyle = '#67e8f9';
   ctx.font = 'bold 20px monospace';
-  ctx.fillText('CERTIFICADO OFICIAL DE PESQUISADOR ESPACIAL', 400, 134);
+  ctx.fillText(
+    lang === 'en'
+      ? 'OFFICIAL SPACE EXPLORER CERTIFICATE'
+      : 'CERTIFICADO OFICIAL DE PESQUISADOR ESPACIAL',
+    400,
+    134
+  );
 
   ctx.fillStyle = '#f8fafc';
   ctx.font = '18px monospace';
-  ctx.fillText('Conferido ao explorador cientifico:', 400, 185);
+  ctx.fillText(
+    lang === 'en' ? 'Awarded to Mars Scientist:' : 'Conferido ao explorador cientifico:',
+    400,
+    185
+  );
 
   ctx.fillStyle = '#34d399';
   ctx.font = 'bold 34px monospace';
@@ -59,32 +81,50 @@ function downloadExpeditionCertificate(astronautName: string, sol: number, logsC
   ctx.fillStyle = '#e2e8f0';
   ctx.font = '16px monospace';
   ctx.fillText(
-    'Concluiu as 5 Missoes: Energia Solar, Saude, Gelo e Agua, Estufa e Protecao.',
+    lang === 'en'
+      ? 'Completed all 5 Missions: Solar, Health, Ice & Water, Greenhouse & Storms.'
+      : 'Concluiu as 5 Missoes: Energia Solar, Saude, Gelo e Agua, Estufa e Protecao.',
     400,
     278
   );
   ctx.fillText(
-    `Alcance da Expedicao: Sol ${sol} | Registros enviados a Terra: ${logsCount}`,
+    lang === 'en'
+      ? `Expedition Reach: Sol ${sol} | Science Logs Sent to Earth: ${logsCount}`
+      : `Alcance da Expedicao: Sol ${sol} | Registros enviados a Terra: ${logsCount}`,
     400,
     308
   );
 
   ctx.fillStyle = '#fde68a';
   ctx.font = 'bold 18px monospace';
-  ctx.fillText('"A ciencia abre caminhos para novos mundos!"', 400, 352);
+  ctx.fillText(
+    lang === 'en'
+      ? '"Science opens pathways to new worlds!"'
+      : '"A ciencia abre caminhos para novos mundos!"',
+    400,
+    352
+  );
 
   ctx.fillStyle = '#fef3c7';
   ctx.font = 'bold 14px monospace';
-  ctx.fillText('Assinado: Capi (Assistente Virtual de Bordo) — Base Arcadia', 400, 428);
+  ctx.fillText(
+    lang === 'en'
+      ? 'Signed: Capi (Onboard Virtual Assistant) — Arcadia Base'
+      : 'Assinado: Capi (Assistente Virtual de Bordo) — Base Arcadia',
+    400,
+    428
+  );
 
   const link = document.createElement('a');
-  link.download = `certificado_arcadia_${astronautName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.png`;
+  const prefix = lang === 'en' ? 'certificate_arcadia' : 'certificado_arcadia';
+  link.download = `${prefix}_${astronautName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
 
 export const FutureMarsScene: React.FC = () => {
   const { state, setScene, startSurvivalMode, resetGame } = useGameStore();
+  const { lang } = useLanguage();
 
   const capiLines = [
     'Olhe ao nosso redor, comandante! Quando chegamos, encontramos uma paisagem desconhecida e cheia de desafios.',
@@ -97,7 +137,8 @@ export const FutureMarsScene: React.FC = () => {
     downloadExpeditionCertificate(
       state.astronaut.name,
       state.stats.sol,
-      state.logbook.length
+      state.logbook.length,
+      lang
     );
   };
 
@@ -180,7 +221,9 @@ export const FutureMarsScene: React.FC = () => {
 
             <div className="rounded-sm border-2 border-amber-400/50 bg-gradient-to-br from-slate-900 to-indigo-950/60 p-3 text-center">
               <p className="font-pixel text-[8px] text-cyan-300">PESQUISADOR ESPACIAL CERTIFICADO</p>
-              <p className="mt-1 font-pixel text-xs text-emerald-300">{state.astronaut.name}</p>
+              <p data-no-i18n="true" className="mt-1 font-pixel text-xs text-emerald-300">
+                {state.astronaut.name}
+              </p>
               <p className="mt-1 font-dialog text-[11px] text-slate-300">
                 5/5 Missões Científicas Concluídas • Sol {state.stats.sol} • Dados enviados à NASA/Terra
               </p>
@@ -193,7 +236,7 @@ export const FutureMarsScene: React.FC = () => {
                 FOTOS DO ÁLBUM ({state.logbook.length})
               </p>
               {state.logbook.length > 0 ? (
-                <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+                <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                   {state.logbook.slice(0, 6).map((item) => (
                     <div
                       key={item.id}

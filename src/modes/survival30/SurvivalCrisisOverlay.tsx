@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRight, Radio, ShieldAlert, Timer } from 'lucide-rea
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { getSolWeather } from './weatherScheduler';
 
 /**
@@ -17,6 +18,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
     triggerSurvivalCrisis,
     resolveCrisisViaStation,
   } = useGameStore();
+  const { tx, translateText } = useLanguage();
 
   const lastCrisisIdRef = useRef<string | null>(null);
   const idleSolAmbushRef = useRef<number | null>(null);
@@ -133,11 +135,11 @@ export const SurvivalCrisisOverlay: React.FC = () => {
         <div
           role="alertdialog"
           aria-modal="true"
-          aria-label={crisis.title}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm"
+          aria-label={translateText(crisis.title)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-2 backdrop-blur-sm sm:p-3"
         >
           <div
-            className={`pixel-box w-full max-w-lg border-4 border-rose-500 bg-slate-950 p-4 shadow-[0_0_40px_rgba(239,68,68,0.55)] ${
+            className={`pixel-box max-h-[92dvh] w-full max-w-lg overflow-y-auto border-4 border-rose-500 bg-slate-950 p-3.5 shadow-[0_0_40px_rgba(239,68,68,0.55)] sm:p-4 ${
               crisis.secondsLeft <= 5 ? 'cabin-shake' : ''
             }`}
           >
@@ -145,7 +147,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
               <div className="flex items-center gap-2 text-rose-300">
                 <ShieldAlert className="h-5 w-5 animate-pulse text-rose-400" />
                 <span className="font-pixel text-[10px] text-rose-200 sm:text-xs">
-                  EMERGÊNCIA EM TEMPO REAL!
+                  {tx('REAL-TIME EMERGENCY!', 'EMERGÊNCIA EM TEMPO REAL!')}
                 </span>
               </div>
 
@@ -162,7 +164,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
             </div>
 
             <h2 className="font-pixel text-xs text-amber-300 sm:text-sm">
-              {crisis.title}
+              {translateText(crisis.title)}
             </h2>
 
             {/* Barra de tempo restante */}
@@ -185,10 +187,10 @@ export const SurvivalCrisisOverlay: React.FC = () => {
               <div>
                 <span className="inline-flex items-center gap-1 font-pixel text-[8px] text-rose-300">
                   <Radio className="h-3 w-3 animate-pulse" />
-                  CAPI • ALERTA IMEDIATO
+                  {tx('CAPI • IMMEDIATE ALERT', 'CAPI • ALERTA IMEDIATO')}
                 </span>
                 <p className="mt-0.5 font-dialog text-xs leading-snug text-rose-100">
-                  {crisis.capiUrgentWarning}
+                  {translateText(crisis.capiUrgentWarning)}
                 </p>
               </div>
             </div>
@@ -196,14 +198,20 @@ export const SurvivalCrisisOverlay: React.FC = () => {
             <div className="mt-2.5 flex items-center gap-2 rounded-sm border border-amber-500/50 bg-amber-950/30 px-2.5 py-1.5 font-dialog text-xs text-amber-200">
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
               <span>
-                <strong>Risco se falhar:</strong> {crisis.penaltySummary}
+                <strong>{tx('Risk if failed:', 'Risco se falhar:')}</strong>{' '}
+                {translateText(crisis.penaltySummary)}
               </span>
             </div>
 
             {/* Progresso da reação rápida */}
             <div className="mt-3 space-y-2">
               <div className="flex items-center justify-between font-dialog text-[11px] text-slate-300">
-                <span>Contenção de emergência ({crisis.progress}/{crisis.requiredProgress} acionamentos)</span>
+                <span>
+                  {tx(
+                    `Emergency containment (${crisis.progress}/${crisis.requiredProgress} actions)`,
+                    `Contenção de emergência (${crisis.progress}/${crisis.requiredProgress} acionamentos)`
+                  )}
+                </span>
                 <span className="font-pixel text-[9px] text-emerald-300">{actionPct}%</span>
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-sm border border-slate-700 bg-slate-900">
@@ -223,9 +231,9 @@ export const SurvivalCrisisOverlay: React.FC = () => {
                   }
                   interactSurvivalCrisis();
                 }}
-                className="pixel-btn w-full bg-rose-500 px-4 py-3 font-pixel text-[10px] text-white hover:bg-rose-400"
+                className="pixel-btn min-h-[44px] w-full bg-rose-500 px-4 py-3 font-pixel text-[10px] text-white hover:bg-rose-400"
               >
-                {crisis.actionButtonLabel} ({crisis.progress}/{crisis.requiredProgress})
+                {translateText(crisis.actionButtonLabel)} ({crisis.progress}/{crisis.requiredProgress})
               </button>
 
               <button
@@ -234,13 +242,13 @@ export const SurvivalCrisisOverlay: React.FC = () => {
                   soundEngine.playClick();
                   resolveCrisisViaStation();
                 }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-cyan-400/70 bg-cyan-950/60 px-3 py-2 font-dialog text-xs font-bold text-cyan-200 hover:bg-cyan-900/70"
+                className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-sm border border-cyan-400/70 bg-cyan-950/60 px-3 py-2 font-dialog text-xs font-bold text-cyan-200 hover:bg-cyan-900/70"
               >
                 <ArrowRight className="h-3.5 w-3.5" />
-                Ou correr para a{' '}
+                {tx('Or rush to ', 'Ou correr para a ')}
                 {crisis.stationShortcut === 'MISSION_1'
-                  ? 'Estação 1 (Painéis Solares)'
-                  : 'Estação 5 (Abrigo & Vedação)'}
+                  ? tx('Station 1 (Solar Panels)', 'Estação 1 (Painéis Solares)')
+                  : tx('Station 5 (Shelter & Sealing)', 'Estação 5 (Abrigo & Vedação)')}
               </button>
             </div>
           </div>

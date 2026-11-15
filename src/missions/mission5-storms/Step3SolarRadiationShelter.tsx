@@ -13,6 +13,7 @@ import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { AstronautAvatar } from '../../components/permanent/AstronautAvatar';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const GRID_LANES = 3; // 0 (topo), 1 (meio), 2 (base)
 const GRID_COLS = 6; // 0 (início) .. 5 (porta do abrigo blindado)
@@ -37,6 +38,7 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
   onCapiFeedback,
 }) => {
   const { state, updateMission5 } = useGameStore();
+  const { tx } = useLanguage();
   const rad = state.mission5.radiationProtocol;
   const reachedShelter = Boolean(rad.enteredShieldedShelter && rad.riskReducedAndReleased);
 
@@ -285,7 +287,7 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
                           e.preventDefault();
                           handleTapGridCell(laneIdx, colIdx);
                         }}
-                        className={`touch-none select-none relative flex h-16 items-center justify-center rounded-sm border transition ${
+                        className={`touch-none select-none relative flex h-12 items-center justify-center rounded-sm border transition sm:h-16 ${
                           isShelterDoor
                             ? reachedShelter && isPlayer
                               ? 'border-emerald-300 bg-emerald-950/75'
@@ -336,7 +338,7 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
                 e.preventDefault();
                 moveAstronaut(-1, 0);
               }}
-              className="touch-none select-none pixel-btn flex items-center justify-center gap-1.5 bg-slate-800 px-3 py-2.5 font-pixel text-[9px] text-slate-100 hover:bg-slate-700 disabled:opacity-45"
+              className="touch-none select-none pixel-btn flex min-h-[44px] items-center justify-center gap-1.5 bg-slate-800 px-2 py-2.5 font-pixel text-[9px] text-slate-100 hover:bg-slate-700 disabled:opacity-45 sm:px-3"
             >
               <ArrowUp className="h-4 w-4 text-cyan-300" />
               SUBIR
@@ -349,7 +351,7 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
                 e.preventDefault();
                 moveAstronaut(1, 0);
               }}
-              className="touch-none select-none pixel-btn flex items-center justify-center gap-1.5 bg-slate-800 px-3 py-2.5 font-pixel text-[9px] text-slate-100 hover:bg-slate-700 disabled:opacity-45"
+              className="touch-none select-none pixel-btn flex min-h-[44px] items-center justify-center gap-1.5 bg-slate-800 px-2 py-2.5 font-pixel text-[9px] text-slate-100 hover:bg-slate-700 disabled:opacity-45 sm:px-3"
             >
               <ArrowDown className="h-4 w-4 text-cyan-300" />
               DESCER
@@ -397,9 +399,18 @@ export const Step3SolarRadiationShelter: React.FC<Step3SolarRadiationShelterProp
                 <ShieldCheck className="h-5 w-5 shrink-0 text-rose-300" />
               )}
               <span>
-                {reachedShelter
-                  ? `Abrigo Blindado alcançado! ${state.astronaut.name} está 100% protegido.`
-                  : 'Use os botões táteis (ou setas/toque no terreno) para desviar das 2 rochas e alcançar o Abrigo à direita!'}
+                {reachedShelter ? (
+                  <>
+                    {tx('Shielded Shelter reached!', 'Abrigo Blindado alcançado!')}{' '}
+                    <span data-no-i18n="true">{state.astronaut.name}</span>{' '}
+                    {tx('is 100% protected.', 'está 100% protegido.')}
+                  </>
+                ) : (
+                  tx(
+                    'Use the touch buttons (or arrow keys / tap terrain) to dodge the 2 rocks and reach the Shelter on the right!',
+                    'Use os botões táteis (ou setas/toque no terreno) para desviar das 2 rochas e alcançar o Abrigo à direita!'
+                  )
+                )}
               </span>
             </div>
           </div>

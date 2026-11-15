@@ -126,7 +126,10 @@ export const EarthCommsScene: React.FC = () => {
             />
             <div className="absolute bottom-2 left-3 flex items-end gap-2">
               <AstronautAvatar profile={state.astronaut} size="md" />
-              <span className="rounded-sm border border-cyan-400/70 bg-slate-950/90 px-2 py-0.5 font-pixel text-[8px] text-cyan-200">
+              <span
+                data-no-i18n="true"
+                className="rounded-sm border border-cyan-400/70 bg-slate-950/90 px-2 py-0.5 font-pixel text-[8px] text-cyan-200"
+              >
                 {state.astronaut.name}
               </span>
             </div>

@@ -350,13 +350,13 @@ export const Step3CropSelection: React.FC<Step3CropSelectionProps> = ({
               <span>1. HORTALIÇAS (ARRASTE OU TOQUE)</span>
               <GripHorizontal className="h-3.5 w-3.5 text-slate-500" />
             </span>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {VEGETABLE_SEEDS.map((seed) => (
                 <button
                   key={seed.name}
                   type="button"
                   onPointerDown={(e) => startSeedDrag(seed, e)}
-                  className={`touch-none select-none cursor-grab active:cursor-grabbing rounded-sm border px-2 py-2 font-dialog text-xs transition ${
+                  className={`touch-none select-none cursor-grab active:cursor-grabbing min-h-[42px] rounded-sm border px-2 py-2 font-dialog text-xs transition ${
                     crops.vegetable === seed.name
                       ? 'border-emerald-400 bg-emerald-950/70 font-bold text-emerald-100'
                       : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-emerald-400'

@@ -48,16 +48,16 @@ export const LaunchScene: React.FC = () => {
         }`}
       >
         {/* Fundo do cockpit com a Terra vista pelas janelas */}
-        <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+        <div className="relative min-h-[300px] w-full overflow-hidden bg-slate-900 sm:aspect-video">
           {!imgError ? (
             <img
               src={ASSET_MANIFEST.bgCockpitLaunch.path}
               alt={ASSET_MANIFEST.bgCockpitLaunch.alt}
               onError={() => setImgError(true)}
-              className="pixel-art h-full w-full object-cover"
+              className="pixel-art absolute inset-0 h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-slate-900 font-pixel text-xs text-cyan-300">
+            <div className="flex h-full min-h-[300px] w-full items-center justify-center bg-slate-900 font-pixel text-xs text-cyan-300">
               {ASSET_MANIFEST.bgCockpitLaunch.fallbackLabel}
             </div>
           )}
@@ -67,14 +67,14 @@ export const LaunchScene: React.FC = () => {
             type="button"
             onClick={handleActivateCapi}
             title="Clique na luz central para ativar a Capi"
-            className="absolute bottom-[11%] left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border-2 border-cyan-300 bg-cyan-500/80 px-3 py-1 font-pixel text-[8px] text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.95)] transition hover:scale-105"
+            className="absolute bottom-3 left-1/2 flex min-h-[40px] -translate-x-1/2 items-center gap-1.5 rounded-full border-2 border-cyan-300 bg-cyan-500/80 px-3 py-1 font-pixel text-[8px] text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.95)] transition hover:scale-105 sm:bottom-[11%]"
           >
             <span className="h-2.5 w-2.5 animate-ping rounded-full bg-white" />
             PAINEL CENTRAL
           </button>
 
           {/* Terminal do Sistema da Espaçonave */}
-          <div className="absolute left-4 top-4 w-[calc(100%-2rem)] max-w-md rounded-sm border-2 border-cyan-400/80 bg-slate-950/90 p-3.5 shadow-xl hologram-grid">
+          <div className="absolute left-3 top-3 w-[calc(100%-1.5rem)] max-w-md rounded-sm border-2 border-cyan-400/80 bg-slate-950/90 p-3 shadow-xl hologram-grid sm:left-4 sm:top-4 sm:w-[calc(100%-2rem)] sm:p-3.5">
             <div className="mb-2 flex items-center gap-2 border-b border-cyan-500/40 pb-1.5">
               <Rocket className="h-4 w-4 text-orange-400" />
               <span className="font-pixel text-[9px] text-cyan-300">
