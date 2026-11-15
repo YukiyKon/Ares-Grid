@@ -74,7 +74,9 @@ export const MISSION_REGISTRY: MissionDefinition[] = [
       'Construir uma estufa controlada com hidroponia e aeroponia para pesquisar suporte à vida sustentável.',
     nasaReference: 'NASA Sistemas Bioregenerativos de Suporte à Vida (ECLSS)',
     challengesPreview: [
-      'Disponível nas próximas etapas de desenvolvimento.',
+      'Desafio 4.1 e 4.2: Construir a estufa com LED e testar hidroponia vs. aeroponia',
+      'Desafio 4.3 e 4.4: Escolher os 4 grupos de plantas e controlar luz, água e clima',
+      'Desafio 4.5: Fechar o Sistema Bioregenerativo (ECLSS: comida, O2 e água reciclada)',
     ],
   },
   {
@@ -87,7 +89,9 @@ export const MISSION_REGISTRY: MissionDefinition[] = [
       'Diferenciar tempestades de poeira de eventos de radiação solar e aplicar protocolos de proteção do habitat.',
     nasaReference: 'NASA Dust in the Wind & Real Martians',
     challengesPreview: [
-      'Disponível nas próximas etapas de desenvolvimento.',
+      'Desafio 5.1 e 5.2: Protocolo contra tempestade de poeira e limpeza remota dos painéis',
+      'Desafio 5.3: Alerta de radiação solar invisível e entrada no Abrigo Blindado (H2O + regolito)',
+      'Desafio 5.4: Inspeção pós-tempestade da base, Diário de Bordo e Relatório de Segurança',
     ],
   },
 ];

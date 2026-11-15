@@ -4,6 +4,7 @@ import {
   BookOpen,
   Droplets,
   HeartPulse,
+  Map,
   Moon,
   RotateCcw,
   Volume2,
@@ -23,6 +24,10 @@ const SCENE_SHORT_LABELS: Record<GameSceneId, string> = {
   MISSION_1: 'Missão 1: Solar',
   MISSION_2: 'Missão 2: Saúde',
   MISSION_3: 'Missão 3: Gelo e Água',
+  MISSION_4: 'Missão 4: Estufa',
+  MISSION_5: 'Missão 5: Tempestades',
+  EARTH_COMMS: '6. Central Terra',
+  FUTURE_MARS: '7. Futuro em Marte',
 };
 
 export const TopStatusHUD: React.FC = () => {
@@ -109,8 +114,20 @@ export const TopStatusHUD: React.FC = () => {
           </div>
         </div>
 
-        {/* Botões Permanentes (Diário / Dormir / Som / Cenas / Reset) */}
+        {/* Botões Permanentes (Mapa de Arcadia / Diário / Dormir / Som / Cenas / Reset) */}
         <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playClick();
+              openModal('ARCADIA_MAP');
+            }}
+            className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-emerald-300"
+          >
+            <Map className="h-3.5 w-3.5" />
+            🗺️ MAPA DE ARCADIA
+          </button>
+
           <button
             type="button"
             onClick={() => {

@@ -4,7 +4,10 @@ import {
   CheckCircle2,
   HeartPulse,
   Lock,
+  Map,
   Moon,
+  Satellite,
+  ShieldAlert,
   Snowflake,
   Sparkles,
   Sprout,
@@ -17,6 +20,10 @@ import { MISSION_REGISTRY } from '../missions/missionRegistry';
 import { Mission1SolarScene } from '../missions/mission1-solar/Mission1SolarScene';
 import { Mission2HealthScene } from '../missions/mission2-health/Mission2HealthScene';
 import { Mission3IceScene } from '../missions/mission3-ice/Mission3IceScene';
+import { Mission4GreenhouseScene } from '../missions/mission4-greenhouse/Mission4GreenhouseScene';
+import { Mission5StormsScene } from '../missions/mission5-storms/Mission5StormsScene';
+import { EarthCommsScene } from '../scenes/ending/EarthCommsScene';
+import { FutureMarsScene } from '../scenes/ending/FutureMarsScene';
 import { CapiIntroScene } from '../scenes/intro/CapiIntroScene';
 import { CountdownScene } from '../scenes/intro/CountdownScene';
 import { CustomizeScene } from '../scenes/intro/CustomizeScene';
@@ -31,15 +38,29 @@ const BaseHubScene: React.FC = () => {
   const mission1 = MISSION_REGISTRY[0];
   const mission2 = MISSION_REGISTRY[1];
   const mission3 = MISSION_REGISTRY[2];
+  const mission4 = MISSION_REGISTRY[3];
+  const mission5 = MISSION_REGISTRY[4];
   const { solarInstalled } = state.stats;
   const { mission1Completed, mission2Unlocked } = state.mission1;
   const { mission2Completed, mission3Unlocked } = state.mission2;
   const { mission3Completed, mission4Unlocked } = state.mission3;
+  const { mission4Completed, mission5Unlocked } = state.mission4;
+  const { mission5Completed, endingUnlocked } = state.mission5;
 
-  const capiLines = mission4Unlocked
+  const capiLines = endingUnlocked
+    ? [
+        'Missão 5 concluída com segurança! Todas as 5 missões científicas em Arcadia Planitia foram finalizadas!',
+        'Clique em "Central de Comunicação (Cena 6)" para enviar o Relatório Geral da Expedição aos cientistas da Terra!',
+      ]
+    : mission5Unlocked
+    ? [
+        'ALERTA AMBIENTAL, comandante! Detectamos uma tempestade de poeira e atividade solar em Arcadia Planitia!',
+        'Clique em "Iniciar Missão 5: Tempestades ▶" ou direto no Abrigo Blindado no terreno da Base!',
+      ]
+    : mission4Unlocked
     ? [
         'Fantástico, comandante! Temos energia solar, saúde monitorada e reserva de água potável em 100%!',
-        'A Missão 4 (A Primeira Estufa de Marte) já foi desbloqueada para a próxima etapa da expedição!',
+        'A Missão 4 (A Primeira Estufa de Marte) já está desbloqueada! Clique no botão verde ou no domo da Estufa no mapa!',
       ]
     : mission3Unlocked
     ? [
@@ -77,6 +98,26 @@ const BaseHubScene: React.FC = () => {
     setScene('MISSION_3');
   };
 
+  const handleOpenMission4 = () => {
+    soundEngine.playClick();
+    setScene('MISSION_4');
+  };
+
+  const handleOpenMission5 = () => {
+    soundEngine.playClick();
+    setScene('MISSION_5');
+  };
+
+  const handleOpenEarthComms = () => {
+    soundEngine.playClick();
+    setScene('EARTH_COMMS');
+  };
+
+  const handleOpenFutureMars = () => {
+    soundEngine.playClick();
+    setScene('FUTURE_MARS');
+  };
+
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-52 sm:pb-44">
       {/* Cenário limpo da Base em Arcadia Planitia */}
@@ -95,46 +136,34 @@ const BaseHubScene: React.FC = () => {
             </div>
           )}
 
-          {/* Habitat Principal clicável quando Missão 2 estiver liberada */}
-          {mission2Unlocked && (
-            <button
-              type="button"
-              onClick={handleOpenMission2}
-              className="absolute left-[11%] top-[34%] rounded-sm border-2 border-cyan-300 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition hover:scale-105"
+          {/* 1. Habitat Principal (esquerda) — Missão 2: Interior e Saúde */}
+          <button
+            type="button"
+            disabled={!mission2Unlocked}
+            onClick={handleOpenMission2}
+            className={`absolute left-[10%] top-[34%] rounded-sm border-2 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition ${
+              mission2Unlocked
+                ? 'cursor-pointer border-cyan-300 hover:scale-105'
+                : 'cursor-not-allowed border-slate-500/80 opacity-85'
+            }`}
+          >
+            <span
+              className={`block font-pixel text-[8px] ${
+                mission2Unlocked ? 'text-cyan-300' : 'text-slate-300'
+              }`}
             >
-              <span className="block font-pixel text-[8px] text-cyan-300">
-                {mission2Completed ? 'HABITAT (SAÚDE OK)' : 'HABITAT (MISSÃO 2)'}
-              </span>
-              <span className="font-dialog text-[11px] text-slate-200">
-                Entrar no módulo ▶
-              </span>
-            </button>
-          )}
+              HABITAT
+            </span>
+            <span className="font-dialog text-[11px] text-slate-200">
+              {mission2Completed
+                ? 'Saúde OK ✓'
+                : mission2Unlocked
+                  ? 'Missão 2: Saúde ▶'
+                  : 'Requer Painel Solar'}
+            </span>
+          </button>
 
-          {/* Campo de Perfuração clicável quando Missão 3 estiver liberada */}
-          {mission3Unlocked && (
-            <button
-              type="button"
-              onClick={handleOpenMission3}
-              className="absolute right-[26%] top-[28%] flex flex-col items-center transition hover:scale-105"
-            >
-              <img
-                src={ASSET_MANIFEST.drillRig.path}
-                alt={ASSET_MANIFEST.drillRig.alt}
-                className="pixel-art h-16 w-auto drop-shadow-[0_6px_10px_rgba(0,0,0,0.7)]"
-              />
-              <span className="rounded-sm border-2 border-cyan-300 bg-slate-950/95 px-2 py-0.5 text-center shadow-lg">
-                <span className="block font-pixel text-[8px] text-cyan-200">
-                  {mission3Completed ? 'GELO CONFIRMADO ✓' : 'PERFURAÇÃO (MISSÃO 3)'}
-                </span>
-                <span className="font-dialog text-[10px] text-slate-200">
-                  {mission3Completed ? 'Rever laboratório ▶' : 'Explorar gelo ▶'}
-                </span>
-              </span>
-            </button>
-          )}
-
-          {/* Astronauta personalizado em frente ao habitat */}
+          {/* 2. Astronauta personalizado (centro-esquerda) */}
           <div className="absolute bottom-[10%] left-[29%] flex flex-col items-center">
             <AstronautAvatar profile={state.astronaut} size="md" />
             <span className="mt-1 rounded-sm border border-cyan-400/70 bg-slate-950/90 px-1.5 py-0.5 font-pixel text-[8px] text-cyan-200">
@@ -142,11 +171,29 @@ const BaseHubScene: React.FC = () => {
             </span>
           </div>
 
-          {/* Área Solar clicável no mapa da Base */}
+          {/* 3. Rover Explorador (centro) — abre o Mapa Regional de Arcadia */}
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playClick();
+              openModal('ARCADIA_MAP');
+            }}
+            className="absolute bottom-[14%] left-[46%] rounded-sm border-2 border-amber-300 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition hover:scale-105"
+          >
+            <span className="inline-flex items-center gap-1 font-pixel text-[8px] text-amber-300">
+              <Map className="h-3 w-3" />
+              ROVER EXPLORADOR
+            </span>
+            <span className="block font-dialog text-[11px] text-slate-200">
+              🗺️ Mapa de Arcadia ▶
+            </span>
+          </button>
+
+          {/* 4. Área Solar clicável no mapa da Base (direita) — Missão 1 */}
           <button
             type="button"
             onClick={handleOpenMission1}
-            className="group absolute bottom-[12%] right-[8%] flex flex-col items-center transition hover:scale-105"
+            className="group absolute bottom-[11%] right-[6%] flex flex-col items-center transition hover:scale-105"
           >
             {solarInstalled ? (
               <img
@@ -180,7 +227,69 @@ const BaseHubScene: React.FC = () => {
       {/* Briefing Dinâmico da Missão Atual + Cartuchos da Expedição */}
       <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
         <div className="rounded-sm border-2 border-amber-400/70 bg-slate-950 p-4">
-          {mission3Unlocked ? (
+          {mission5Unlocked ? (
+            <>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-orange-300">
+                  <ShieldAlert className="h-5 w-5 text-orange-300" />
+                  <h1 className="font-pixel text-xs">{mission5.title}</h1>
+                </div>
+                <span
+                  className={`rounded-sm border px-2 py-0.5 font-dialog text-[11px] ${
+                    mission5Completed
+                      ? 'border-emerald-400 bg-emerald-950/80 text-emerald-300'
+                      : 'border-orange-400 bg-orange-950/60 text-orange-200'
+                  }`}
+                >
+                  {mission5Completed ? '✓ CONCLUÍDA' : 'DESBLOQUEADA'}
+                </span>
+              </div>
+
+              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
+                {mission5.scientificObjective}
+              </p>
+
+              <div className="mt-3 rounded-sm border border-orange-500/40 bg-slate-900 p-2.5">
+                <span className="block font-pixel text-[8px] text-orange-300">
+                  REFERÊNCIA CIENTÍFICA ({mission5.nasaReference})
+                </span>
+                <p className="mt-1 font-dialog text-xs text-orange-100">
+                  Tempestade de Poeira • Limpeza Remota • Abrigo Blindado contra Radiação Solar (H2O + Regolito)
+                </p>
+              </div>
+            </>
+          ) : mission4Unlocked ? (
+            <>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-emerald-300">
+                  <Sprout className="h-5 w-5 text-emerald-300" />
+                  <h1 className="font-pixel text-xs">{mission4.title}</h1>
+                </div>
+                <span
+                  className={`rounded-sm border px-2 py-0.5 font-dialog text-[11px] ${
+                    mission4Completed
+                      ? 'border-emerald-400 bg-emerald-950/80 text-emerald-300'
+                      : 'border-emerald-400 bg-emerald-950/60 text-emerald-200'
+                  }`}
+                >
+                  {mission4Completed ? '✓ CONCLUÍDA' : 'DESBLOQUEADA'}
+                </span>
+              </div>
+
+              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
+                {mission4.scientificObjective}
+              </p>
+
+              <div className="mt-3 rounded-sm border border-emerald-500/40 bg-slate-900 p-2.5">
+                <span className="block font-pixel text-[8px] text-emerald-300">
+                  REFERÊNCIA CIENTÍFICA ({mission4.nasaReference})
+                </span>
+                <p className="mt-1 font-dialog text-xs text-emerald-100">
+                  Hidroponia & Aeroponia • Controle LED e Clima • Ciclo Bioregenerativo (Comida + O2 + Água)
+                </p>
+              </div>
+            </>
+          ) : mission3Unlocked ? (
             <>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-cyan-300">
@@ -276,6 +385,53 @@ const BaseHubScene: React.FC = () => {
           )}
 
           <div className="mt-4 flex flex-wrap gap-2">
+            {endingUnlocked && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleOpenEarthComms}
+                  className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-cyan-300"
+                >
+                  <Satellite className="h-4 w-4" />
+                  Central de Comunicação (Cena 6) ▶
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenFutureMars}
+                  className="pixel-btn inline-flex items-center gap-1.5 bg-amber-300 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-amber-200"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Futuro em Marte (Cena 7) ▶
+                </button>
+              </>
+            )}
+
+            {mission5Unlocked && (
+              <button
+                type="button"
+                onClick={handleOpenMission5}
+                className="pixel-btn inline-flex items-center gap-1.5 bg-orange-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-orange-300"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                {mission5Completed
+                  ? 'Rever Missão 5: Tempestades ▶'
+                  : 'Iniciar Missão 5: Tempestades em Marte ▶'}
+              </button>
+            )}
+
+            {mission4Unlocked && (
+              <button
+                type="button"
+                onClick={handleOpenMission4}
+                className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300"
+              >
+                <Sprout className="h-4 w-4" />
+                {mission4Completed
+                  ? 'Rever Missão 4: Estufa ▶'
+                  : 'Iniciar Missão 4: A Primeira Estufa ▶'}
+              </button>
+            )}
+
             {mission3Unlocked && (
               <button
                 type="button"
@@ -311,6 +467,18 @@ const BaseHubScene: React.FC = () => {
               {solarInstalled
                 ? 'Painel da Missão 1 ▶'
                 : 'Iniciar Missão 1: Energia Solar ▶'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playClick();
+                openModal('ARCADIA_MAP');
+              }}
+              className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-cyan-300"
+            >
+              <Map className="h-3.5 w-3.5" />
+              Mapa de Arcadia
             </button>
 
             <button
@@ -353,12 +521,19 @@ const BaseHubScene: React.FC = () => {
               const isM1Done = mission.id === 'MISSION_1' && mission1Completed;
               const isM2Done = mission.id === 'MISSION_2' && mission2Completed;
               const isM3Done = mission.id === 'MISSION_3' && mission3Completed;
+              const isM4Done = mission.id === 'MISSION_4' && mission4Completed;
+              const isM5Done = mission.id === 'MISSION_5' && mission5Completed;
               const isM2Unlocked = mission.id === 'MISSION_2' && mission2Unlocked;
               const isM3Unlocked = mission.id === 'MISSION_3' && mission3Unlocked;
               const isM4Unlocked = mission.id === 'MISSION_4' && mission4Unlocked;
-              const isDone = isM1Done || isM2Done || isM3Done;
+              const isM5Unlocked = mission.id === 'MISSION_5' && mission5Unlocked;
+              const isDone = isM1Done || isM2Done || isM3Done || isM4Done || isM5Done;
               const isClickable =
-                mission.id === 'MISSION_1' || isM2Unlocked || isM3Unlocked;
+                mission.id === 'MISSION_1' ||
+                isM2Unlocked ||
+                isM3Unlocked ||
+                isM4Unlocked ||
+                isM5Unlocked;
 
               return (
                 <li key={mission.id}>
@@ -369,14 +544,14 @@ const BaseHubScene: React.FC = () => {
                       if (mission.id === 'MISSION_1') handleOpenMission1();
                       if (mission.id === 'MISSION_2' && isM2Unlocked) handleOpenMission2();
                       if (mission.id === 'MISSION_3' && isM3Unlocked) handleOpenMission3();
+                      if (mission.id === 'MISSION_4' && isM4Unlocked) handleOpenMission4();
+                      if (mission.id === 'MISSION_5' && isM5Unlocked) handleOpenMission5();
                     }}
                     className={`flex w-full items-start justify-between gap-2 rounded-sm border p-2 text-left transition ${
                       isDone
                         ? 'border-emerald-400/70 bg-emerald-950/30 hover:bg-emerald-950/50'
-                        : isM3Unlocked || isM2Unlocked || mission.id === 'MISSION_1'
+                        : isM5Unlocked || isM4Unlocked || isM3Unlocked || isM2Unlocked || mission.id === 'MISSION_1'
                         ? 'border-amber-400/70 bg-amber-950/30 hover:bg-amber-950/50'
-                        : isM4Unlocked
-                        ? 'border-emerald-400/70 bg-emerald-950/20'
                         : 'border-slate-800 bg-slate-900/60 opacity-75'
                     }`}
                   >
@@ -385,8 +560,10 @@ const BaseHubScene: React.FC = () => {
                         {mission.title}
                       </p>
                       <p className="font-dialog text-[10px] text-slate-400">
-                        {isM4Unlocked
-                          ? 'DESBLOQUEADA! Pronta para a Etapa 5.'
+                        {isM5Unlocked && !isM5Done
+                          ? 'DESBLOQUEADA! Clique para iniciar ▶'
+                          : isM4Unlocked && !isM4Done
+                          ? 'DESBLOQUEADA! Clique para iniciar ▶'
                           : isM3Unlocked && !isM3Done
                           ? 'DESBLOQUEADA! Clique para iniciar ▶'
                           : isM2Unlocked && !isM2Done
@@ -396,6 +573,8 @@ const BaseHubScene: React.FC = () => {
                     </div>
                     {isDone ? (
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                    ) : isM5Unlocked ? (
+                      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" />
                     ) : isM4Unlocked ? (
                       <Sprout className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
                     ) : isM3Unlocked ? (
@@ -442,6 +621,14 @@ export const SceneManager: React.FC = () => {
       return <Mission2HealthScene />;
     case 'MISSION_3':
       return <Mission3IceScene />;
+    case 'MISSION_4':
+      return <Mission4GreenhouseScene />;
+    case 'MISSION_5':
+      return <Mission5StormsScene />;
+    case 'EARTH_COMMS':
+      return <EarthCommsScene />;
+    case 'FUTURE_MARS':
+      return <FutureMarsScene />;
     default:
       return <CountdownScene />;
   }

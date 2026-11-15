@@ -229,6 +229,23 @@ export const SleepReportModal: React.FC = () => {
                   <strong className="text-amber-300">{state.logbook.length}</strong>{' '}
                   entrada(s).
                 </p>
+                {(state.currentScene === 'MISSION_5' ||
+                  state.mission5.radiationProtocol.enteredShieldedShelter ||
+                  state.mission5.mission5Completed) && (
+                  <p className="rounded-sm border border-amber-400/60 bg-amber-950/60 px-2 py-1 text-[11px] text-amber-100">
+                    Relatório de Segurança e Radiação: tempestade de poeira contida, painéis limpos (480 W) e abrigo blindado (água/hidrogênio + solo marciano) manteve a exposição à radiação em nível seguro.
+                  </p>
+                )}
+                {(state.currentScene === 'MISSION_4' || state.mission4.growthStage > 0) && (
+                  <p className="rounded-sm border border-emerald-500/40 bg-emerald-950/40 px-2 py-1 text-[11px] text-emerald-200">
+                    Relatório da Estufa: método Hidroponia/Aeroponia, cultivo de{' '}
+                    {state.mission4.selectedCrops.vegetable ?? 'hortaliças'},{' '}
+                    {state.mission4.selectedCrops.fruit ?? 'morango'},{' '}
+                    {state.mission4.selectedCrops.grain ?? 'trigo'} e{' '}
+                    {state.mission4.selectedCrops.ornamental ?? 'flores'} (estágio{' '}
+                    {state.mission4.growthStage}/3).
+                  </p>
+                )}
                 <p className="text-slate-400">
                   {state.logbook.length > 0
                     ? `Último registro: "${state.logbook[0].event}"`
@@ -289,7 +306,15 @@ export const SleepReportModal: React.FC = () => {
                     ? 'CONEXÃO ESTABELECIDA: Dados recebidos pela Central Terrestre!'
                     : 'TRANSMISSÃO PENDENTE: Dados preservados com segurança no servidor da nave.'}
                 </p>
-                {state.mission3.mission4Unlocked ? (
+                {state.mission5.endingUnlocked ? (
+                  <p className="rounded-sm border border-cyan-400/70 bg-cyan-950/80 px-2 py-1 text-xs text-cyan-100">
+                    📡 Missão 5 concluída com segurança! Todas as 5 missões foram finalizadas e a <strong>Cena 6 — Central de Comunicação com a Terra</strong> foi desbloqueada!
+                  </p>
+                ) : state.mission4.mission5Unlocked ? (
+                  <p className="rounded-sm border border-amber-400/60 bg-amber-950/70 px-2 py-1 text-xs text-amber-100">
+                    🌪️ Missão 4 concluída! A <strong>Missão 5 — Alerta! Tempestades em Marte</strong> foi desbloqueada!
+                  </p>
+                ) : state.mission3.mission4Unlocked ? (
                   <p className="rounded-sm border border-emerald-400/60 bg-emerald-950/70 px-2 py-1 text-xs text-emerald-100">
                     🌱 Missão 3 concluída! A <strong>Missão 4 — A Primeira Estufa de Marte</strong> foi desbloqueada!
                   </p>

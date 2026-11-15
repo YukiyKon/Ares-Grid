@@ -14,7 +14,11 @@ export type GameSceneId =
   | 'BASE_HUB'
   | 'MISSION_1'
   | 'MISSION_2'
-  | 'MISSION_3';
+  | 'MISSION_3'
+  | 'MISSION_4'
+  | 'MISSION_5'
+  | 'EARTH_COMMS'
+  | 'FUTURE_MARS';
 
 export type SuitColorId = 'white' | 'orange' | 'cyan' | 'emerald' | 'violet';
 export type HelmetStyleId = 'classic' | 'visor_cyan' | 'gold_shield';
@@ -126,6 +130,93 @@ export interface Mission3State {
   mission4Unlocked: boolean;
 }
 
+export type Mission4Phase =
+  | 'STEP_1_BUILD'
+  | 'STEP_2_METHODS'
+  | 'STEP_3_CROPS'
+  | 'STEP_4_GROWTH'
+  | 'STEP_5_BIOREG'
+  | 'COMPLETED';
+
+export type EnvSettingLevel = 'LOW' | 'IDEAL' | 'HIGH';
+export type TempSettingLevel = 'COLD' | 'IDEAL' | 'HOT';
+
+export interface Mission4State {
+  phase: Mission4Phase;
+  subsystems: {
+    structure: boolean;
+    lighting: boolean;
+    climate: boolean;
+    irrigation: boolean;
+    connectedSolar: boolean;
+    connectedWater: boolean;
+  };
+  methodsInspected: {
+    hydroponics: boolean;
+    aeroponics: boolean;
+    rawRegolithTested: boolean;
+  };
+  selectedMethod: 'HYDRO_AERO' | null;
+  selectedCrops: {
+    vegetable: string | null;
+    fruit: string | null;
+    grain: string | null;
+    ornamental: string | null;
+  };
+  envSettings: {
+    light: EnvSettingLevel;
+    waterNutrient: EnvSettingLevel;
+    tempHumidity: TempSettingLevel;
+  };
+  growthStage: 0 | 1 | 2 | 3;
+  bioregLinks: {
+    foodProduction: boolean;
+    airRevitalization: boolean;
+    waterRecycling: boolean;
+  };
+  loggedInDiary: boolean;
+  mission4Completed: boolean;
+  mission5Unlocked: boolean;
+}
+
+export type Mission5Phase =
+  | 'STEP_1_DUST'
+  | 'STEP_2_SOLAR_CLEAN'
+  | 'STEP_3_RADIATION'
+  | 'STEP_4_INSPECTION'
+  | 'COMPLETED';
+
+export interface Mission5State {
+  phase: Mission5Phase;
+  dustProtocol: {
+    checkPanel: boolean;
+    stopExternalAndReturn: boolean;
+    sealCompartmentsAndFilters: boolean;
+    protectGearAndBattery: boolean;
+  };
+  postDustSolar: {
+    inspectedDrop: boolean;
+    remoteCleaningTriggered: boolean;
+  };
+  radiationProtocol: {
+    alertConsulted: boolean;
+    externalStopped: boolean;
+    enteredShieldedShelter: boolean;
+    shieldingVerified: boolean;
+    riskReducedAndReleased: boolean;
+  };
+  postStormInspection: {
+    solarPanels: boolean;
+    habitatStructure: boolean;
+    greenhouseDome: boolean;
+    commsSystems: boolean;
+  };
+  loggedInDiary: boolean;
+  mission5Completed: boolean;
+  endingUnlocked: boolean;
+  earthTransmissionCompleted: boolean;
+}
+
 export interface HealthSimulationData {
   sleepHours: number;
   sleepQuality: 'Excelente' | 'Boa' | 'Regular';
@@ -149,7 +240,7 @@ export interface LogbookEntry {
   transmittedToEarth: boolean;
 }
 
-export type ActiveModalType = 'NONE' | 'LOGBOOK' | 'SLEEP_REPORT';
+export type ActiveModalType = 'NONE' | 'LOGBOOK' | 'SLEEP_REPORT' | 'ARCADIA_MAP';
 
 export interface GameState {
   currentScene: GameSceneId;
@@ -158,6 +249,8 @@ export interface GameState {
   mission1: Mission1State;
   mission2: Mission2State;
   mission3: Mission3State;
+  mission4: Mission4State;
+  mission5: Mission5State;
   healthSimulation: HealthSimulationData;
   logbook: LogbookEntry[];
   lastEarthSyncStatus: string;
@@ -232,6 +325,75 @@ const DEFAULT_MISSION_3: Mission3State = {
   mission4Unlocked: false,
 };
 
+const DEFAULT_MISSION_4: Mission4State = {
+  phase: 'STEP_1_BUILD',
+  subsystems: {
+    structure: false,
+    lighting: false,
+    climate: false,
+    irrigation: false,
+    connectedSolar: false,
+    connectedWater: false,
+  },
+  methodsInspected: {
+    hydroponics: false,
+    aeroponics: false,
+    rawRegolithTested: false,
+  },
+  selectedMethod: null,
+  selectedCrops: {
+    vegetable: null,
+    fruit: null,
+    grain: null,
+    ornamental: null,
+  },
+  envSettings: {
+    light: 'LOW',
+    waterNutrient: 'LOW',
+    tempHumidity: 'COLD',
+  },
+  growthStage: 0,
+  bioregLinks: {
+    foodProduction: false,
+    airRevitalization: false,
+    waterRecycling: false,
+  },
+  loggedInDiary: false,
+  mission4Completed: false,
+  mission5Unlocked: false,
+};
+
+const DEFAULT_MISSION_5: Mission5State = {
+  phase: 'STEP_1_DUST',
+  dustProtocol: {
+    checkPanel: false,
+    stopExternalAndReturn: false,
+    sealCompartmentsAndFilters: false,
+    protectGearAndBattery: false,
+  },
+  postDustSolar: {
+    inspectedDrop: false,
+    remoteCleaningTriggered: false,
+  },
+  radiationProtocol: {
+    alertConsulted: false,
+    externalStopped: false,
+    enteredShieldedShelter: false,
+    shieldingVerified: false,
+    riskReducedAndReleased: false,
+  },
+  postStormInspection: {
+    solarPanels: false,
+    habitatStructure: false,
+    greenhouseDome: false,
+    commsSystems: false,
+  },
+  loggedInDiary: false,
+  mission5Completed: false,
+  endingUnlocked: false,
+  earthTransmissionCompleted: false,
+};
+
 const DEFAULT_STATE: GameState = {
   currentScene: 'COUNTDOWN',
   astronaut: {
@@ -252,6 +414,8 @@ const DEFAULT_STATE: GameState = {
   mission1: DEFAULT_MISSION_1,
   mission2: DEFAULT_MISSION_2,
   mission3: DEFAULT_MISSION_3,
+  mission4: DEFAULT_MISSION_4,
+  mission5: DEFAULT_MISSION_5,
   healthSimulation: {
     sleepHours: 8.2,
     sleepQuality: 'Boa',
@@ -301,6 +465,50 @@ function loadInitialState(): GameState {
         potabilityChecks: {
           ...DEFAULT_MISSION_3.potabilityChecks,
           ...(parsed.mission3?.potabilityChecks ?? {}),
+        },
+      },
+      mission4: {
+        ...DEFAULT_MISSION_4,
+        ...(parsed.mission4 ?? {}),
+        subsystems: {
+          ...DEFAULT_MISSION_4.subsystems,
+          ...(parsed.mission4?.subsystems ?? {}),
+        },
+        methodsInspected: {
+          ...DEFAULT_MISSION_4.methodsInspected,
+          ...(parsed.mission4?.methodsInspected ?? {}),
+        },
+        selectedCrops: {
+          ...DEFAULT_MISSION_4.selectedCrops,
+          ...(parsed.mission4?.selectedCrops ?? {}),
+        },
+        envSettings: {
+          ...DEFAULT_MISSION_4.envSettings,
+          ...(parsed.mission4?.envSettings ?? {}),
+        },
+        bioregLinks: {
+          ...DEFAULT_MISSION_4.bioregLinks,
+          ...(parsed.mission4?.bioregLinks ?? {}),
+        },
+      },
+      mission5: {
+        ...DEFAULT_MISSION_5,
+        ...(parsed.mission5 ?? {}),
+        dustProtocol: {
+          ...DEFAULT_MISSION_5.dustProtocol,
+          ...(parsed.mission5?.dustProtocol ?? {}),
+        },
+        postDustSolar: {
+          ...DEFAULT_MISSION_5.postDustSolar,
+          ...(parsed.mission5?.postDustSolar ?? {}),
+        },
+        radiationProtocol: {
+          ...DEFAULT_MISSION_5.radiationProtocol,
+          ...(parsed.mission5?.radiationProtocol ?? {}),
+        },
+        postStormInspection: {
+          ...DEFAULT_MISSION_5.postStormInspection,
+          ...(parsed.mission5?.postStormInspection ?? {}),
         },
       },
       healthSimulation: {
@@ -371,6 +579,9 @@ interface GameContextValue {
   updateMission1: (patch: Partial<Mission1State>) => void;
   updateMission2: (patch: Partial<Mission2State>) => void;
   updateMission3: (patch: Partial<Mission3State>) => void;
+  updateMission4: (patch: Partial<Mission4State>) => void;
+  updateMission5: (patch: Partial<Mission5State>) => void;
+  transmitAllLogsToEarth: () => void;
   installSolarSystem: (watts: number) => void;
   completeMission2SleepScene: (earthConnected: boolean) => void;
   completeMission3WaterDiscovery: () => void;
@@ -435,6 +646,37 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState((prev) => ({
       ...prev,
       mission3: { ...prev.mission3, ...patch },
+    }));
+  };
+
+  const updateMission4 = (patch: Partial<Mission4State>) => {
+    setState((prev) => ({
+      ...prev,
+      mission4: { ...prev.mission4, ...patch },
+    }));
+  };
+
+  const updateMission5 = (patch: Partial<Mission5State>) => {
+    setState((prev) => ({
+      ...prev,
+      mission5: { ...prev.mission5, ...patch },
+    }));
+  };
+
+  const transmitAllLogsToEarth = () => {
+    setState((prev) => ({
+      ...prev,
+      mission5: {
+        ...prev.mission5,
+        earthTransmissionCompleted: true,
+      },
+      logbook: prev.logbook.map((item) => ({
+        ...item,
+        savedInShipServer: true,
+        transmittedToEarth: true,
+      })),
+      lastEarthSyncStatus:
+        'Relatório Geral da Expedição transmitido e confirmado pela Central Terrestre da NASA!',
     }));
   };
 
@@ -542,6 +784,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       state.currentScene === 'MISSION_2' || entry.sceneLabel === 'MISSION_2';
     const marksMission3Diary =
       state.currentScene === 'MISSION_3' || entry.sceneLabel === 'MISSION_3';
+    const marksMission4Diary =
+      state.currentScene === 'MISSION_4' || entry.sceneLabel === 'MISSION_4';
+    const marksMission5Diary =
+      state.currentScene === 'MISSION_5' || entry.sceneLabel === 'MISSION_5';
 
     setState((prev) => ({
       ...prev,
@@ -554,6 +800,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mission3: marksMission3Diary
         ? { ...prev.mission3, loggedInDiary: true }
         : prev.mission3,
+      mission4: marksMission4Diary
+        ? { ...prev.mission4, loggedInDiary: true }
+        : prev.mission4,
+      mission5: marksMission5Diary
+        ? { ...prev.mission5, loggedInDiary: true }
+        : prev.mission5,
       logbook: [newEntry, ...prev.logbook],
     }));
   };
@@ -573,11 +825,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const canFinishMission3 = prev.mission3.waterApproved;
 
+      const canFinishMission4 =
+        prev.currentScene === 'MISSION_4' ||
+        (prev.mission4.bioregLinks.foodProduction &&
+          prev.mission4.bioregLinks.airRevitalization &&
+          prev.mission4.bioregLinks.waterRecycling);
+
+      const canFinishMission5 =
+        prev.currentScene === 'MISSION_5' ||
+        (prev.mission5.postStormInspection.solarPanels &&
+          prev.mission5.postStormInspection.habitatStructure &&
+          prev.mission5.postStormInspection.greenhouseDome &&
+          prev.mission5.postStormInspection.commsSystems);
+
       const nextSol = canFinishMission2
         ? Math.max(2, prev.stats.sol + 1)
         : prev.stats.sol + 1;
 
-      const note = canFinishMission3
+      const note = canFinishMission5
+        ? `Sol ${nextSol}: Relatório de segurança e exposição à radiação validados! Central de Comunicação com a Terra (Cena 6) liberada.`
+        : canFinishMission4
+        ? `Sol ${nextSol}: Relatório da estufa e sistema bioregenerativo atualizados! Missão 5 desbloqueada.`
+        : canFinishMission3
         ? `Sol ${nextSol}: Descoberta de gelo e purificação de água concluídas! Missão 4 desbloqueada.`
         : canFinishMission2
         ? `Sol ${nextSol}: Saúde e sono monitorados (NASA Spaceflight Standard Measures)! Missão 3 desbloqueada.`
@@ -591,6 +860,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...prev.stats,
           sol: nextSol,
           health: 100,
+          energy: canFinishMission5 ? 100 : prev.stats.energy,
           water: canFinishMission3 ? 100 : prev.stats.water,
         },
         mission1: canFinishMission1
@@ -617,6 +887,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               mission4Unlocked: true,
             }
           : prev.mission3,
+        mission4: canFinishMission4
+          ? {
+              ...prev.mission4,
+              phase: 'COMPLETED',
+              mission4Completed: true,
+              mission5Unlocked: true,
+            }
+          : prev.mission4,
+        mission5: canFinishMission5
+          ? {
+              ...prev.mission5,
+              phase: 'COMPLETED',
+              mission5Completed: true,
+              endingUnlocked: true,
+            }
+          : prev.mission5,
         healthSimulation: buildSyncedHealthSimulation(
           prev,
           note,
@@ -656,6 +942,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateMission1,
         updateMission2,
         updateMission3,
+        updateMission4,
+        updateMission5,
+        transmitAllLogsToEarth,
         installSolarSystem,
         completeMission2SleepScene,
         completeMission3WaterDiscovery,

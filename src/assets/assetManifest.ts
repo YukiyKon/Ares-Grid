@@ -3,7 +3,15 @@ export interface SpriteEntry {
   path: string;
   alt: string;
   transparent: boolean;
-  missionScope: 'INTRO' | 'MISSION_1' | 'MISSION_2' | 'MISSION_3' | 'FUTURE';
+  missionScope:
+    | 'INTRO'
+    | 'MISSION_1'
+    | 'MISSION_2'
+    | 'MISSION_3'
+    | 'MISSION_4'
+    | 'MISSION_5'
+    | 'ENDING'
+    | 'FUTURE';
   fallbackLabel: string;
 }
 
@@ -138,6 +146,64 @@ export const ASSET_MANIFEST: Record<string, SpriteEntry> = {
     transparent: false,
     missionScope: 'MISSION_3',
     fallbackLabel: 'LABORATÓRIO DE ÁGUA',
+  },
+  // Sprites da Missão 4 — A Primeira Estufa de Marte (Etapa 5)
+  greenhouseDome: {
+    id: 'greenhouseDome',
+    path: '/assets/sprites/mission4/greenhouse_dome.png',
+    alt: 'Domo experimental futurista da primeira estufa em Marte com luzes LED de cultivo',
+    transparent: true,
+    missionScope: 'MISSION_4',
+    fallbackLabel: 'ESTUFA DE MARTE',
+  },
+  hydroAeroStation: {
+    id: 'hydroAeroStation',
+    path: '/assets/sprites/mission4/hydro_aero_station.png',
+    alt: 'Interior da estufa marciana com sistemas de hidroponia e aeroponia',
+    transparent: false,
+    missionScope: 'MISSION_4',
+    fallbackLabel: 'ESTAÇÃO HIDROPONIA E AEROPONIA',
+  },
+  marsCropsTray: {
+    id: 'marsCropsTray',
+    path: '/assets/sprites/mission4/mars_crops_tray.png',
+    alt: 'Bandeja científica com hortaliças, morangos, trigo e flores ornamentais',
+    transparent: true,
+    missionScope: 'MISSION_4',
+    fallbackLabel: 'BANDEJA DE CULTURAS',
+  },
+  // Sprites da Missão 5 e Cena Final 6 (Etapa 6)
+  radiationShelter: {
+    id: 'radiationShelter',
+    path: '/assets/sprites/mission5/radiation_shelter.png',
+    alt: 'Abrigo blindado contra radiação com camadas de solo marciano e reservatórios de água',
+    transparent: true,
+    missionScope: 'MISSION_5',
+    fallbackLabel: 'ABRIGO DE RADIAÇÃO',
+  },
+  dustStormScene: {
+    id: 'dustStormScene',
+    path: '/assets/sprites/mission5/dust_storm_scene.png',
+    alt: 'Tempestade de poeira marciana se aproximando dos painéis solares e da base',
+    transparent: false,
+    missionScope: 'MISSION_5',
+    fallbackLabel: 'TEMPESTADE DE POEIRA',
+  },
+  earthCommsRoom: {
+    id: 'earthCommsRoom',
+    path: '/assets/sprites/mission5/earth_comms_room.png',
+    alt: 'Sala de comando e comunicação com a Terra brilhando pela janela espacial',
+    transparent: false,
+    missionScope: 'ENDING',
+    fallbackLabel: 'CENTRAL DE COMUNICAÇÃO',
+  },
+  arcadiaWorldMap: {
+    id: 'arcadiaWorldMap',
+    path: '/assets/sprites/arcadia_world_map.png',
+    alt: 'Mapa regional top-down de Arcadia Planitia baseado na foto orbital NASA HiRISE ESP_046254_2170',
+    transparent: false,
+    missionScope: 'INTRO',
+    fallbackLabel: 'MAPA ORBITAL ARCADIA PLANITIA (ESP_046254_2170)',
   },
 };
 

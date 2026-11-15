@@ -57,7 +57,47 @@ function buildPixelPhotoDataUrl(
     ctx.fillRect(90, 94, 16, 10);
 
     // Painéis solares instalados ou área demarcada
-    if (scene === 'MISSION_3') {
+    if (scene === 'MISSION_5' || scene === 'EARTH_COMMS' || scene === 'FUTURE_MARS') {
+      // Abrigo blindado contra radiação com porta de segurança amarela/preta e poeira laranja
+      ctx.fillStyle = '#ea580c';
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(0, 12, 320, 74);
+      ctx.globalAlpha = 1;
+      // Cúpula blindada revestida de solo marciano e reservatórios de água (H2O)
+      ctx.fillStyle = '#9a3412';
+      ctx.fillRect(168, 76, 118, 54);
+      ctx.fillStyle = '#06b6d4';
+      ctx.fillRect(172, 84, 16, 26);
+      ctx.fillRect(266, 84, 16, 26);
+      // Porta blindada listrada amarela e preta
+      ctx.fillStyle = '#eab308';
+      ctx.fillRect(204, 92, 46, 38);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(210, 98, 34, 32);
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(222, 108, 10, 10);
+    } else if (scene === 'MISSION_4') {
+      // Domo geodésico da estufa marciana com luzes LED e canteiros verdes
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(166, 118, 128, 14);
+      ctx.fillStyle = '#0ea5e9';
+      ctx.globalAlpha = 0.28;
+      ctx.fillRect(178, 66, 104, 52);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(178, 66, 104, 52);
+      // Canteiros verdes hidropônicos e LED magenta de cultivo
+      ctx.fillStyle = '#e879f9';
+      ctx.fillRect(188, 74, 84, 5);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(188, 94, 24, 18);
+      ctx.fillRect(218, 92, 24, 20);
+      ctx.fillRect(248, 94, 24, 18);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(224, 96, 4, 4);
+      ctx.fillRect(234, 100, 4, 4);
+    } else if (scene === 'MISSION_3') {
       // Perfuradora e testemunho de gelo azul-ciano no Setor Gama
       ctx.fillStyle = '#334155';
       ctx.fillRect(190, 96, 10, 34);
@@ -148,6 +188,22 @@ const SCENE_SUGGESTIONS: Record<GameSceneId, { event: string; aspect: string }> 
     event: 'Descoberta de gelo subterrâneo e tratamento de água em Arcadia Planitia',
     aspect: 'Radar SHARAD + HiRISE indicaram o Setor Gama; amostra congelada a 2,2 m filtrada, tratada e aprovada nos 5 testes de potabilidade.',
   },
+  MISSION_4: {
+    event: 'Colheita na Primeira Estufa Bioregenerativa de Marte',
+    aspect: 'Estufa conectada à energia solar e água purificada; cultivo hidropônico/aeropônico com LEDs, 4 grupos de plantas e reciclagem ECLSS de ar e água.',
+  },
+  MISSION_5: {
+    event: 'Proteção contra tempestade de poeira e evento de radiação solar',
+    aspect: 'Vedação do habitat, limpeza remota dos painéis solares (480 W), proteção no Abrigo Blindado (água/H2O + regolito) e inspeção pós-tempestade concluídas.',
+  },
+  EARTH_COMMS: {
+    event: 'Transmissão do Relatório Geral da Expedição à Central da Terra',
+    aspect: 'Servidor da espaçonave empacotou todas as pesquisas, fotografias e dados das 5 missões para envio à NASA.',
+  },
+  FUTURE_MARS: {
+    event: 'Avaliação integrada da Base Arcadia Planitia para o futuro em Marte',
+    aspect: 'Sistemas de energia solar, saúde, água purificada, estufa bioregenerativa e proteção ambiental operando de forma sustentável.',
+  },
 };
 
 export const LogbookModal: React.FC = () => {
@@ -161,7 +217,38 @@ export const LogbookModal: React.FC = () => {
 
   useEffect(() => {
     if (!isOpen) return;
-    if (state.currentScene === 'MISSION_3') {
+    if (state.currentScene === 'MISSION_5') {
+      const m5 = state.mission5;
+      setEventText('Alerta Ambiental: Tempestade de Poeira e Radiação Solar');
+      setAspectText(
+        `Protocolo de vedação e baterias concluído; painéis solares ${
+          m5.postDustSolar.remoteCleaningTriggered ? 'limpos remotamente (480 W)' : 'em avaliação'
+        }; proteção contra radiação solar realizada no ${
+          m5.radiationProtocol.enteredShieldedShelter
+            ? 'Abrigo Blindado (água/H2O + solo marciano).'
+            : 'habitat.'
+        }`
+      );
+    } else if (state.currentScene === 'MISSION_4') {
+      const m4 = state.mission4;
+      const cropsCount = Object.values(m4.selectedCrops).filter(Boolean).length;
+      const bioregDone =
+        m4.bioregLinks.foodProduction &&
+        m4.bioregLinks.airRevitalization &&
+        m4.bioregLinks.waterRecycling;
+      setEventText('Construção e colheita da Primeira Estufa em Marte');
+      setAspectText(
+        `Cultivo por ${
+          m4.selectedMethod === 'HYDRO_AERO'
+            ? 'Hidroponia + Aeroponia (raízes livres sem regolito tóxico)'
+            : 'bancada experimental'
+        } com ${cropsCount}/4 grupos de plantas e ${
+          bioregDone || m4.mission4Completed
+            ? 'sistema ECLSS fechado (alimentos, O2 e água reciclada).'
+            : 'sistema ambiental calibrado.'
+        }`
+      );
+    } else if (state.currentScene === 'MISSION_3') {
       const m3 = state.mission3;
       setEventText('Descoberta de gelo no Setor Gama e purificação de água potável');
       setAspectText(
@@ -197,6 +284,8 @@ export const LogbookModal: React.FC = () => {
     state.mission1,
     state.mission2,
     state.mission3,
+    state.mission4,
+    state.mission5,
   ]);
 
   if (!isOpen) return null;
