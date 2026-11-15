@@ -117,6 +117,8 @@ export function formatNightlyDominoEffect(
       return dict.survival.nightlyDominoEffects.greenhouseCrashNoFood;
     case 'DEHYDRATION':
       return dict.survival.nightlyDominoEffects.dehydrationPenalty;
+    case 'FAINTED_0200':
+      return dict.survival.nightlyDominoEffects.faintedPenalty;
   }
 }
 
@@ -293,6 +295,18 @@ export function formatNoticeDescriptor(
       const c = dict.survival.crises[descriptor.crisisType];
       return dict.survival.notices.crisisTimeout(c.title, c.penaltySummary);
     }
+    case 'FAINTED_0200':
+      return dict.survival.notices.fainted0200;
+    case 'STORM_PREP_STARTED':
+      return dict.survival.notices.stormPrepStarted(
+        dict.survival.weather[descriptor.weatherType].title
+      );
+    case 'STORM_IMPACT_STARTED':
+      return dict.survival.notices.stormImpactStarted(
+        dict.survival.weather[descriptor.weatherType].title
+      );
+    case 'STORM_CLEARED':
+      return dict.survival.notices.stormCleared;
     case 'VICTORY':
       return dict.survival.notices.victory;
     case 'FAILURE':

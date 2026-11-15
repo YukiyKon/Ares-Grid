@@ -109,7 +109,7 @@ export const Mission2HealthScene: React.FC = () => {
               ] as const
             ).map(([stepId, label]) => {
               const unlocked =
-                (isSurvival && stepId !== 'STEP_4_SLEEP') ||
+                isSurvival ||
                 stepId === 'STEP_1_GYM' ||
                 (stepId === 'STEP_2_GALLEY' && state.mission2.exercisesCompleted.length >= 4) ||
                 (stepId === 'STEP_3_HYGIENE' && state.mission2.nutritionCompleted) ||

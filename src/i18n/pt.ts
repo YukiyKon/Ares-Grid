@@ -180,6 +180,7 @@ export interface UiDictionary {
       greenhouseCrashWithFood: string;
       greenhouseCrashNoFood: string;
       dehydrationPenalty: string;
+      faintedPenalty: string;
     };
     dailyLog: {
       exerciseDone: (count: number) => string;
@@ -222,6 +223,10 @@ export interface UiDictionary {
       crisisStarted: (title: string) => string;
       crisisContained: (title: string) => string;
       crisisTimeout: (title: string, penaltySummary: string) => string;
+      fainted0200: string;
+      stormPrepStarted: (title: string) => string;
+      stormImpactStarted: (title: string) => string;
+      stormCleared: string;
       victory: string;
       sleepCycleDone: (sol: number, shortBadge: string, isCritical: boolean, stormProtected: boolean) => string;
       syncCompleted: (sol: number) => string;
@@ -322,6 +327,69 @@ export interface UiDictionary {
       m5DustPendingBtn: (done: number) => string;
       m5ShelterReadyBtn: string;
       m5ShelterPendingBtn: string;
+    };
+    realtime: {
+      clockBadge: (sol: number, timeStr: string) => string;
+      dayPhase: {
+        DAWN: string;
+        MORNING: string;
+        NOON: string;
+        DUSK: string;
+        NIGHT: string;
+      };
+      pauseBtn: string;
+      resumeBtn: string;
+      pausedTag: string;
+      fastForwardBtn: string;
+      fastForwardHintDisabled: string;
+      hungerLabel: string;
+      thirstLabel: string;
+      solarOutputLabel: (watts: number, effPct: number) => string;
+      habitatIndoorSafe: string;
+      habitatEnterBtn: string;
+      habitatExitBtn: string;
+      breakersTitle: string;
+      breakersSub: string;
+      breakersMandatory: string;
+      breakerLifeSupport: string;
+      breakerLifeSupportDesc: string;
+      breakerLeds: string;
+      breakerLedsDesc: string;
+      breakerHeater: string;
+      breakerHeaterDesc: string;
+      breakerRadar: string;
+      breakerRadarDesc: string;
+      faintTitle: string;
+      faintBadge: string;
+      faintSpeech: string;
+      faintPenaltyHealth: string;
+      faintPenaltyWake: string;
+      faintPenaltyStamina: string;
+      faintWakeBtn: string;
+      bunkerTitle: string;
+      bunkerEnterBtn: string;
+      bunkerExitBtn: string;
+      bunkerSafeBanner: string;
+      bunkerDangerBanner: string;
+      stormChecklistTitle: string;
+      stormPrepCountdown: (sec: number) => string;
+      stormImpactCountdown: (sec: number) => string;
+      stormCheckHatches: string;
+      stormCheckCrops: string;
+      stormCheckBreakers: string;
+      stormCheckBunker: string;
+      stormPostBanner: string;
+      cropStage: {
+        EMPTY: string;
+        SEED: string;
+        SPROUT: string;
+        GROWING: string;
+        MATURE: string;
+      };
+      cropPlantAction: string;
+      cropTendAction: string;
+      cropHarvestAction: string;
+      cropPausedLed: string;
     };
   };
   arcade: {
@@ -546,52 +614,52 @@ export const UI_PT: UiDictionary = {
       MISSION_1: {
         title: 'Estação 1: Painéis Solares',
         shortTitle: 'Painéis Solares',
-        costLabel: '-1 Turno • -20% Stamina',
-        rewardLabel: 'Zera poeira solar • +12% Energia',
-        operationTag: 'Painéis Solares limpos (0% poeira) • +12% Energia recuperada',
-        blockedReason: 'Stamina insuficiente (mín. 20%) para operar os Painéis Solares! Descanse ou alimente-se no Habitat.',
-        hubPinSub: '-20% Stam • Poeira 0%',
-        quickBtn: '1. Solar (-20% Stam)',
+        costLabel: '-15% Stamina • Tempo real',
+        rewardLabel: 'Zera poeira solar • +10% Energia',
+        operationTag: 'Painéis Solares limpos (0% poeira) • +10% Energia recuperada',
+        blockedReason: 'Stamina insuficiente (mín. 10%) para operar os Painéis Solares! Alimente-se no Habitat.',
+        hubPinSub: '-15% Stam • Poeira 0%',
+        quickBtn: '1. Solar (Limpar Poeira)',
       },
       MISSION_2: {
         title: 'Estação 2: Habitat / Saúde',
         shortTitle: 'Habitat & Saúde',
-        costLabel: '-1 Turno • -1 Ração • -12% Água • -6% Energia',
-        rewardLabel: '+22% Saúde • +35% Stamina • restaura Teto de Stamina',
+        costLabel: '-1 Ração • -8% Água • -4% Energia',
+        rewardLabel: '+68% Fome/Sede • +20% Saúde • +40% Stamina',
         operationTag: 'Rotina do Habitat (treino, refeição, hidratação e higiene)',
-        blockedReason: 'Sem turnos disponíveis neste Sol!',
-        hubPinSub: '+35% Stam • +22% Saúde',
-        quickBtn: '2. Habitat (+35% Stam)',
+        blockedReason: 'Recursos insuficientes no Habitat!',
+        hubPinSub: '+Fome/Sede • +20% Saúde',
+        quickBtn: '2. Habitat (Comer/Beber)',
       },
       MISSION_3: {
         title: 'Estação 3: Jazida de Gelo & Lab',
         shortTitle: 'Gelo & Água',
-        costLabel: '-1 Turno • -30% Stamina • -14% Energia',
-        rewardLabel: '+26% Água Potável na base',
-        operationTag: 'Perfuração a 2,2 m & filtro UV: +26% Água Potável extraída',
-        blockedReason: 'Stamina insuficiente (mín. 30%) para perfurar o gelo marciano! Recupere-se no Habitat.',
-        hubPinSub: '-30% Stam • +26% Água',
-        quickBtn: '3. Gelo (+26% Água)',
+        costLabel: '-24% Stamina • -12% Energia',
+        rewardLabel: '+28% Água Potável na base',
+        operationTag: 'Perfuração a 2,2 m & filtro UV: +28% Água Potável extraída',
+        blockedReason: 'Stamina insuficiente (mín. 18%) para perfurar o gelo marciano! Recupere-se no Habitat.',
+        hubPinSub: '-24% Stam • +28% Água',
+        quickBtn: '3. Gelo (+28% Água)',
       },
       MISSION_4: {
-        title: 'Estufa ECLSS',
+        title: 'Estufa ECLSS (2-3 Sols)',
         shortTitle: 'Estufa Hidropônica',
-        costLabel: '-1 Turno • -20% Stamina • -16% Água • -10% Energia',
-        rewardLabel: '+2 Rações de Comida • +8% Saúde (O₂)',
-        operationTag: 'Estufa ECLSS: névoa nutritiva e colheita (+2 Rações, +8% O₂/Saúde)',
-        blockedReason: 'Stamina insuficiente (mín. 20%) para manejar a Estufa Hidropônica!',
-        hubPinSub: '-20% Stam • +2 Rações',
-        quickBtn: '4. Estufa (+2 Rações)',
+        costLabel: '-14% Stamina • -10% Água • -6% Energia',
+        rewardLabel: 'Planta/rega em tempo real ou colhe +2 Rações',
+        operationTag: 'Estufa ECLSS: manejo contínuo e colheita (+Rações, +8% O₂/Saúde)',
+        blockedReason: 'Stamina insuficiente (mín. 10%) para manejar a Estufa Hidropônica!',
+        hubPinSub: 'Crescimento Contínuo 2-3 Sols',
+        quickBtn: '4. Estufa (Cultivo)',
       },
       MISSION_5: {
-        title: 'Estação 5: Abrigo & Proteção Ambiental',
-        shortTitle: 'Abrigo & Proteção',
-        costLabel: '-1 Turno • -15% Stamina • -8% Energia',
-        rewardLabel: 'Protege contra Tempestade/Radiação • -10% Poeira nos filtros',
-        operationTag: 'Abrigo & Comunicações: base selada contra tempestade e radiação',
-        blockedReason: 'Stamina insuficiente (mín. 15%) para vedar a base!',
-        hubPinSub: '-15% Stam • Protege Base',
-        quickBtn: '5. Abrigo (-15% Stam)',
+        title: 'Estação 5: Bunker & Vedação',
+        shortTitle: 'Bunker & Proteção',
+        costLabel: '-10% Stamina • -5% Energia',
+        rewardLabel: 'Veda base e abre acesso ao Bunker Blindado',
+        operationTag: 'Bunker & Escotilhas: base vedada contra tempestade e radiação',
+        blockedReason: 'Stamina insuficiente (mín. 5%) para vedar a base!',
+        hubPinSub: 'Abrigo Contra Tempestades',
+        quickBtn: '5. Bunker & Vedação',
       },
     },
     crises: {
@@ -636,6 +704,7 @@ export const UI_PT: UiDictionary = {
       greenhouseCrashWithFood: 'Energia < 30% → Resfriamento da Estufa estragou -1 Ração e derrubou O₂ (-8% Saúde).',
       greenhouseCrashNoFood: 'Energia < 30% → Estufa despressurizada derrubou O₂ (-8% Saúde).',
       dehydrationPenalty: 'Água < 25% → Desidratação reduziu Saúde (-10%) e teto de Stamina (-15%).',
+      faintedPenalty: 'Desmaio às 02:00 AM → Resgate de exaustão (-25% Saúde, acordou às 09:00 com 40% Stamina).',
     },
     dailyLog: {
       exerciseDone: (count) => `Treino gravitacional concluído (${count} ${count > 1 ? 'exercícios' : 'exercício'})`,
@@ -663,8 +732,8 @@ export const UI_PT: UiDictionary = {
       MISSION_5: 'Abrigo & Comunicações: base selada contra tempestade e radiação',
     },
     notices: {
-      initial: 'Sobrevivência extrema iniciada: 4 Turnos por Sol não permitem fazer tudo — priorize energia, água e comida sob risco de cascata!',
-      zeroTurnsLeft: 'Turnos do Sol esgotados (0/4)! Vá dormir para fechar o balanço diário e avançar ao próximo Sol.',
+      initial: 'Sobrevivência em tempo real iniciada às 06:00! Gerencie o pico solar, disjuntores à noite, Fome & Sede e durma antes das 02:00 AM.',
+      zeroTurnsLeft: 'Já é tarde em Marte! Vá dormir no Habitat antes das 02:00 AM para recuperar 100% Stamina e +15% Saúde.',
       insufficientStamina: (stationTitle, cost, current) =>
         `Stamina insuficiente para operar ${stationTitle}! Precisa de ${cost}% (atual: ${current}%). Alimente-se no Habitat!`,
       insufficientWater: (stationTitle, minWater, current) =>
@@ -682,6 +751,10 @@ export const UI_PT: UiDictionary = {
       crisisStarted: (title) => `EMERGÊNCIA SÚBITA: ${title}! Resolva antes que o tempo acabe!`,
       crisisContained: (title) => `Emergência contida a tempo (${title})! +30 pts científicos e base preservada.`,
       crisisTimeout: (title, penaltySummary) => `FALHA NA CRISE (${title}): ${penaltySummary}!`,
+      fainted0200: '02:00 AM! Exaustão extrema — você desmaiou fora da cama e a Capi realizou o resgate!',
+      stormPrepStarted: (title) => `ALERTA DE TEMPESTADE EXTREMA (${title}): Complete o checklist e entre no Bunker em 35s!`,
+      stormImpactStarted: (title) => `IMPACTO SEVERO (${title})! Permaneça dentro do Bunker Blindado até passar!`,
+      stormCleared: 'Tempestade extrema encerrada! Poeira espessa nos painéis — limpe o Setor 1 urgentemente!',
       victory: 'Parabéns! Você sobreviveu todos os 30 Sols extremos em Arcadia Planitia!',
       sleepCycleDone: (sol, shortBadge, isCritical, stormProtected) =>
         `Sol ${sol} encerrado (${shortBadge}). ${isCritical && !stormProtected ? 'Dano climático noturno aplicado!' : 'Base avançou para o amanhecer!'}`,
@@ -738,7 +811,7 @@ export const UI_PT: UiDictionary = {
       m1SurvivalDustLabel: 'Poeira atual na base:',
       m1SurvivalReadyDesc: 'Painel solar limpo e calibrado! Conclua a manutenção para zerar a poeira acumulada na base e recuperar +12% de Energia.',
       m1SurvivalPendingDesc: 'Esfregue toda a poeira sobre o painel acima até atingir 90%+ para liberar o registro de manutenção.',
-      m1SurvivalBtn: '☀️ Concluir Manutenção Solar (-1 Turno • -20% Stamina • +12% Energia) ▶',
+      m1SurvivalBtn: '☀️ Concluir Manutenção Solar (-15% Stamina • +10% Energia) ▶',
       m2Badge: 'MISSÃO 2 • HABITAT HUMANO',
       m2Title: 'CUIDANDO DO ASTRONAUTA',
       m2TabExercise: '2.1 Exercício',
@@ -749,14 +822,14 @@ export const UI_PT: UiDictionary = {
       m2HygieneFallback: 'Ambiente, mãos e luvas esterilizados',
       m2HydrationOnlyBtn: '💧 Salvar Hidratação (0 Rações) & Ir para Higiene (2.3) ▶',
       m2HydrationNeedWater: '0 rações disponíveis — Dose água (300–400 ml) para hidratar',
-      m2HydrationQuickTurnBtn: '✅ Hidratar & Concluir Turno Agora (-1 Turno • +8% Saúde) ▶',
+      m2HydrationQuickTurnBtn: '✅ Hidratar Agora (+65% Sede • +8% Saúde) ▶',
       m2StockEmptyBtn: 'Estoque zerado (0 rações) — Use a Estufa (Estação 4) ou Hidrate acima',
       m2MealStepBtn: (kcal) => `🥗 Registrar Refeição (${kcal} kcal) & Ir para Higiene (2.3) ▶`,
-      m2MealQuickTurnBtn: '✅ Concluir Turno no Habitat Agora (Sem Higiene • -1 Turno • +22% Saúde • +35% Stamina) ▶',
+      m2MealQuickTurnBtn: '✅ Concluir Refeição & Hidratação (+68% Fome/Sede • +20% Saúde) ▶',
       m2HygieneTitle: 'Esterilizar Equipamentos e Bancadas',
       m2HygieneDone: 'Poeira marciana removida com sucesso',
       m2HygienePending: 'Use o módulo de limpeza ao lado (esfregar 90%+)',
-      m2HygieneCompleteBtn: '🧼 Concluir Esterilização & Encerrar Turno (-1 Turno) ▶',
+      m2HygieneCompleteBtn: '🧼 Concluir Esterilização & Aplicar (+Fome/Sede/Saúde) ▶',
       m2HygieneProgressBtn: (done) => `Realize as 3 etapas de higiene (${done}/3)`,
       m3Badge: 'MISSÃO 3 • ARCADIA NORTE',
       m3Title: 'O MISTÉRIO DO GELO DE MARTE',
@@ -764,7 +837,7 @@ export const UI_PT: UiDictionary = {
       m3TabDrill: '3.3-3.4 Perfuração',
       m3TabLab: '3.5 Laboratório de Água',
       m3LockAlert: 'Conclua a etapa anterior do radar/perfuração para desbloquear este módulo!',
-      m3SurvivalBtn: '💧 Abastecer Base (+26% Água Potável • -1 Turno) ▶',
+      m3SurvivalBtn: '💧 Abastecer Base (+28% Água Potável • -24% Stamina) ▶',
       m4Badge: 'MISSÃO 4 • ESTUFA DE MARTE',
       m4Title: 'A PRIMEIRA ESTUFA DE MARTE',
       m4TabMethod: '4.1 Método',
@@ -773,7 +846,7 @@ export const UI_PT: UiDictionary = {
       m4TabGrowth: '4.4 Cultivo & O₂',
       m4TabBioreg: '4.5 Biorregenerativo',
       m4LockAlert: 'Conclua o desafio anterior da Estufa para liberar esta etapa!',
-      m4SurvivalBtn: '🌱 Colher & Armazenar (+2 Rações • +8% Saúde • -1 Turno) ▶',
+      m4SurvivalBtn: '🌱 Concluir Manejo da Estufa (+Rações • +8% O₂/Saúde) ▶',
       m5Badge: 'MISSÃO 5 • EMERGÊNCIAS EM MARTE',
       m5Title: 'ALERTA! TEMPESTADES EM MARTE',
       m5TabDust: '5.1 Tempestade Poeira',
@@ -781,10 +854,73 @@ export const UI_PT: UiDictionary = {
       m5TabShelter: '5.3 Radiação Solar',
       m5TabInspect: '5.4 Inspeção Final',
       m5LockAlert: 'Conclua o protocolo de segurança anterior para avançar!',
-      m5DustReadyBtn: '🛡️ Ativar Proteção da Base (-1 Turno • -15% Stamina) ▶',
+      m5DustReadyBtn: '🛡️ Vedar Base & Entrar no Bunker (-10% Stamina) ▶',
       m5DustPendingBtn: (done) => `Arraste as 4 escotilhas até VEDADO (${done}/4)`,
-      m5ShelterReadyBtn: '🛡️ Ativar Proteção da Base (-1 Turno • -15% Stamina) ▶',
+      m5ShelterReadyBtn: '🛡️ Vedar Base & Entrar no Bunker (-10% Stamina) ▶',
       m5ShelterPendingBtn: 'Guie o astronauta até a porta do Abrigo Blindado ▶',
+    },
+    realtime: {
+      clockBadge: (sol, timeStr) => `SOL ${sol}/30 • ${timeStr}`,
+      dayPhase: {
+        DAWN: '🌅 Amanhecer',
+        MORNING: '☀️ Manhã',
+        NOON: '🔆 Pico Solar',
+        DUSK: '🌇 Entardecer',
+        NIGHT: '🌙 Noite Marciana',
+      },
+      pauseBtn: '⏸ Pausar',
+      resumeBtn: '▶ Continuar',
+      pausedTag: 'PAUSADO',
+      fastForwardBtn: '⏩ 2x Noite',
+      fastForwardHintDisabled: 'Disponível somente à noite (18:00+) estando seguro dentro do Habitat!',
+      hungerLabel: 'Fome',
+      thirstLabel: 'Sede',
+      solarOutputLabel: (watts, effPct) => `Solar: ${watts} W (${effPct}%)`,
+      habitatIndoorSafe: 'Dentro do Habitat (Seguro)',
+      habitatEnterBtn: '🏠 Entrar no Habitat',
+      habitatExitBtn: '🚪 Sair para o Terreno',
+      breakersTitle: 'QUADRO DE DISJUNTORES',
+      breakersSub: 'Racionamento noturno de bateria: gerencie os sistemas ativos da base em tempo real.',
+      breakersMandatory: 'OBRIGATÓRIO',
+      breakerLifeSupport: 'Suporte de Vida (O₂)',
+      breakerLifeSupportDesc: 'Consumo base contínuo. Não pode ser desligado.',
+      breakerLeds: 'LEDs da Estufa',
+      breakerLedsDesc: 'Alto gasto noturno. Se desligar à noite, plantas pausam o crescimento sem morrer.',
+      breakerHeater: 'Aquecedor do Habitat',
+      breakerHeaterDesc: 'Se desligar no frio noturno, reduz recuperação de Stamina e aumenta Fome.',
+      breakerRadar: 'Radar Orbital',
+      breakerRadarDesc: 'Se desligar, poupa bateria mas reduz o tempo de aviso antecipado de tempestades.',
+      faintTitle: '02:00 AM — DESMAIO POR EXAUSTÃO!',
+      faintBadge: 'RESGATE EMERGENCIAL DA CAPI',
+      faintSpeech: 'Comandante! Você passou das 02:00 AM acordado e caiu exausto! Eu arrastei você para a enfermaria a tempo, mas perdemos 3 horas de sol.',
+      faintPenaltyHealth: '-25% de Saúde por exaustão extrema',
+      faintPenaltyWake: 'Acordou atrasado às 09:00 AM (-3h de luz solar)',
+      faintPenaltyStamina: 'Inicia o novo Sol exausto (apenas 40% de Stamina)',
+      faintWakeBtn: '🌅 Acordar às 09:00 e Continuar ▶',
+      bunkerTitle: 'BUNKER BLINDADO SUBTERRÂNEO',
+      bunkerEnterBtn: '🛡️ Entrar no Bunker',
+      bunkerExitBtn: '⬆️ Sair do Bunker',
+      bunkerSafeBanner: 'SEGURO DENTRO DO BUNKER — Radiação e ventos extremos bloqueados!',
+      bunkerDangerBanner: 'PERIGO! Você está exposto fora do Bunker! Entre agora!',
+      stormChecklistTitle: 'ALERTA EXTREMO • PROTOCOLO DE TEMPESTADE',
+      stormPrepCountdown: (sec) => `IMPACTO EM: ${sec}s`,
+      stormImpactCountdown: (sec) => `TEMPESTADE ATIVA: ${sec}s`,
+      stormCheckHatches: 'Vedar escotilhas externas (Estação 5 / Botão)',
+      stormCheckCrops: 'Garantir/colher plantas maduras na Estufa',
+      stormCheckBreakers: 'Desligar disjuntor não essencial (LEDs/Radar)',
+      stormCheckBunker: 'Entrar fisicamente no Bunker Blindado',
+      stormPostBanner: 'PÓS-TEMPESTADE: Poeira espessa cobriu os painéis solares! Limpe no Setor 1!',
+      cropStage: {
+        EMPTY: 'Vazia (Plantar)',
+        SEED: 'Semente (Fase 1)',
+        SPROUT: 'Broto (Fase 2)',
+        GROWING: 'Crescendo (Fase 3)',
+        MATURE: 'Madura! Colher +2',
+      },
+      cropPlantAction: '🌱 Plantar (-5% Água)',
+      cropTendAction: '💦 Borrifar Névoa (+6h)',
+      cropHarvestAction: '🍓 Colher (+2 Rações)',
+      cropPausedLed: 'Crescimento pausado (LED desligado à noite)',
     },
   },
   arcade: {

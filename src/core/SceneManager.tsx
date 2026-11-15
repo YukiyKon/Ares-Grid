@@ -1,23 +1,9 @@
 import React, { useState } from 'react';
-import {
-  BookOpen,
-  CheckCircle2,
-  HeartPulse,
-  Lock,
-  Map,
-  Moon,
-  Satellite,
-  ShieldAlert,
-  Snowflake,
-  Sparkles,
-  Sprout,
-  SunMedium,
-} from 'lucide-react';
+import { Map, ShieldCheck } from 'lucide-react';
 import { ASSET_MANIFEST } from '../assets/assetManifest';
 import { AstronautAvatar } from '../components/permanent/AstronautAvatar';
 import { CapiAssistant } from '../components/permanent/CapiAssistant';
 import { useLanguage } from '../i18n/LanguageContext';
-import { MISSION_REGISTRY } from '../missions/missionRegistry';
 import { Mission1SolarScene } from '../missions/mission1-solar/Mission1SolarScene';
 import { Mission2HealthScene } from '../missions/mission2-health/Mission2HealthScene';
 import { Mission3IceScene } from '../missions/mission3-ice/Mission3IceScene';
@@ -26,17 +12,19 @@ import { Mission5StormsScene } from '../missions/mission5-storms/Mission5StormsS
 import {
   formatNoticeDescriptor,
   getLocalizedDominoAlerts,
-  getLocalizedEarthSyncStatus,
-  getLocalizedStationRule,
   getLocalizedWeather,
 } from '../modes/survival30/survivalI18n';
 import { SurvivalResultOverlay } from '../modes/survival30/SurvivalResultOverlay';
 import {
+  formatMarsClock,
+  getCelestialArcProgress,
+  getMarsSkyPhase,
   SURVIVAL_STATION_RULES,
   type SurvivalNoticeDescriptor,
   type SurvivalStationId,
 } from '../modes/survival30/survivalTypes';
 import {
+  computeSolarEfficiency,
   getNextSolEarlyWarning,
   getSolWeather,
 } from '../modes/survival30/weatherScheduler';
@@ -59,19 +47,34 @@ type HubFeedback =
   | null;
 
 const BaseHubScene: React.FC = () => {
-  const { state, setScene, openModal } = useGameStore();
+  const {
+    state,
+    setScene,
+    openModal,
+    setSurvivalInBunker,
+  } = useGameStore();
   const { dict, tx, translateText } = useLanguage();
   const [imgError, setImgError] = useState(false);
   const [hubFeedback, setHubFeedback] = useState<HubFeedback>(null);
-  const mission1 = MISSION_REGISTRY[0];
-  const mission2 = MISSION_REGISTRY[1];
-  const mission3 = MISSION_REGISTRY[2];
-  const mission4 = MISSION_REGISTRY[3];
-  const mission5 = MISSION_REGISTRY[4];
   const isSurvival = state.gameMode === 'SURVIVAL_30';
-  const rawWeather = getSolWeather(state.survival.sol);
+  const rawWeather = getSolWeather(state.survival.sol, state.survival.stormSchedule);
   const survivalWeather = getLocalizedWeather(rawWeather.type, dict);
-  const earlyWarning = isSurvival ? getNextSolEarlyWarning(state.survival.sol) : null;
+  const earlyWarning = isSurvival
+    ? getNextSolEarlyWarning(
+        state.survival.sol,
+        state.survival.stormSchedule,
+        state.survival.breakers.orbitalRadar
+      )
+    : null;
+  const clockStr = formatMarsClock(state.survival.clockMinutes);
+  const skyPhase = isSurvival ? getMarsSkyPhase(state.survival.clockMinutes) : 'NOON';
+  const celestialArc = getCelestialArcProgress(state.survival.clockMinutes);
+  const solarCalc = computeSolarEfficiency(
+    state.survival.clockMinutes,
+    state.survival.panelDustPct,
+    rawWeather.type,
+    state.survival.stormEvent.phase === 'IMPACT'
+  );
   const earlyWarningWeather = earlyWarning
     ? getLocalizedWeather(earlyWarning.type, dict)
     : null;
@@ -84,11 +87,11 @@ const BaseHubScene: React.FC = () => {
       : null;
 
   const { solarInstalled } = state.stats;
-  const { mission1Completed, mission2Unlocked } = state.mission1;
+  const { mission2Unlocked } = state.mission1;
   const { mission2Completed, mission3Unlocked } = state.mission2;
-  const { mission3Completed, mission4Unlocked } = state.mission3;
-  const { mission4Completed, mission5Unlocked } = state.mission4;
-  const { mission5Completed, endingUnlocked } = state.mission5;
+  const { mission4Unlocked } = state.mission3;
+  const { mission5Unlocked } = state.mission4;
+  const { endingUnlocked } = state.mission5;
 
   const localizedDominoAlerts = isSurvival
     ? getLocalizedDominoAlerts(state.survival, dict)
@@ -112,11 +115,11 @@ const BaseHubScene: React.FC = () => {
         ]
       : []),
     ...(localizedLastNotice ? [localizedLastNotice] : []),
-    `Sol ${state.survival.sol}/30 • ${survivalWeather.shortBadge}: ${survivalWeather.capiAdvice}`,
+    `Sol ${state.survival.sol}/30 • ${clockStr} (${dict.survival.realtime.dayPhase[skyPhase]}) • ${survivalWeather.shortBadge}`,
     earlyWarningText ??
       tx(
-        `Turns left: ${state.survival.turnsLeft}/4 | Stamina: ${state.survival.stamina}/${state.survival.maxStamina}% | Panel dust: ${state.survival.panelDustPct}%.`,
-        `Turnos restantes: ${state.survival.turnsLeft}/4 | Stamina: ${state.survival.stamina}/${state.survival.maxStamina}% | Poeira nos painéis: ${state.survival.panelDustPct}%.`
+        `Solar: ${solarCalc.outputWatts}W | Hunger: ${state.survival.hunger}% | Thirst: ${state.survival.thirst}% | Dust: ${state.survival.panelDustPct}%. Sleep before 02:00 AM!`,
+        `Solar: ${solarCalc.outputWatts}W | Fome: ${state.survival.hunger}% | Sede: ${state.survival.thirst}% | Poeira: ${state.survival.panelDustPct}%. Durma antes das 02:00!`
       ),
   ];
 
@@ -185,14 +188,6 @@ const BaseHubScene: React.FC = () => {
   const tryOpenSurvivalStation = (stationId: SurvivalStationId) => {
     if (isSurvival) {
       const rule = SURVIVAL_STATION_RULES[stationId];
-      if (state.survival.turnsLeft <= 0) {
-        soundEngine.playAlert();
-        setHubFeedback({
-          kind: 'SURVIVAL_NOTICE',
-          descriptor: { kind: 'ZERO_TURNS_LEFT' },
-        });
-        return;
-      }
       if (state.survival.stamina < rule.minStamina) {
         soundEngine.playAlert();
         setHubFeedback({
@@ -240,25 +235,12 @@ const BaseHubScene: React.FC = () => {
 
   const handleOpenMission1 = () => tryOpenSurvivalStation('MISSION_1');
   const handleOpenMission2 = () => tryOpenSurvivalStation('MISSION_2');
-  const handleOpenMission3 = () => tryOpenSurvivalStation('MISSION_3');
-  const handleOpenMission4 = () => tryOpenSurvivalStation('MISSION_4');
-  const handleOpenMission5 = () => tryOpenSurvivalStation('MISSION_5');
-
-  const handleOpenEarthComms = () => {
-    soundEngine.playClick();
-    setScene('EARTH_COMMS');
-  };
-
-  const handleOpenFutureMars = () => {
-    soundEngine.playClick();
-    setScene('FUTURE_MARS');
-  };
 
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-52 sm:pb-44">
+    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-2 py-2 sm:px-4">
       {/* Cenário limpo da Base em Arcadia Planitia */}
-      <div className="pixel-box-mars relative overflow-hidden bg-slate-950">
-        <div className="relative aspect-[4/3] min-h-[245px] w-full overflow-hidden bg-orange-950 sm:aspect-video">
+      <div className="pixel-box-mars relative w-full max-w-[min(64rem,calc((100dvh-150px)*16/9))] overflow-hidden bg-slate-950">
+        <div className="relative aspect-[16/10] min-h-[225px] w-full overflow-hidden bg-orange-950 sm:aspect-video">
           {!imgError ? (
             <img
               src={ASSET_MANIFEST.bgArcadiaBase.path}
@@ -270,6 +252,51 @@ const BaseHubScene: React.FC = () => {
             <div className="flex h-full w-full items-center justify-center font-pixel text-xs text-orange-200">
               {ASSET_MANIFEST.bgArcadiaBase.fallbackLabel}
             </div>
+          )}
+
+          {/* Transição visual de luz solar/noturna & tempestade no céu da Base */}
+          {isSurvival && (
+            <>
+              <div
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-0 transition-colors duration-1000 ${
+                  state.survival.stormEvent.phase === 'PREP_COUNTDOWN' ||
+                  state.survival.stormEvent.phase === 'IMPACT'
+                    ? 'bg-gradient-to-b from-rose-950/65 via-orange-950/45 to-slate-950/55'
+                    : skyPhase === 'NIGHT'
+                    ? 'bg-gradient-to-b from-slate-950/80 via-indigo-950/60 to-slate-950/70'
+                    : skyPhase === 'DUSK'
+                    ? 'bg-gradient-to-b from-orange-700/35 via-amber-900/20 to-slate-950/35'
+                    : skyPhase === 'DAWN'
+                    ? 'bg-gradient-to-b from-amber-600/25 via-rose-900/15 to-transparent'
+                    : 'bg-transparent'
+                }`}
+              />
+
+              {/* Estrelas marcianas visíveis à noite */}
+              {skyPhase === 'NIGHT' && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 top-0 h-1/2 opacity-80"
+                  style={{
+                    backgroundImage:
+                      'radial-gradient(2px 2px at 14% 25%, #e0f2fe, transparent), radial-gradient(2px 2px at 31% 18%, #fef08a, transparent), radial-gradient(1.5px 1.5px at 56% 12%, #fff, transparent), radial-gradient(2px 2px at 74% 28%, #bae6fd, transparent), radial-gradient(1.5px 1.5px at 88% 20%, #fff, transparent)',
+                  }}
+                />
+              )}
+
+              {/* Sol / Lua percorrendo o céu de Arcadia Planitia */}
+              <div
+                aria-hidden="true"
+                style={{
+                  left: `${8 + Math.round(celestialArc.progress * 82)}%`,
+                  top: `${Math.max(6, Math.round(34 - Math.sin(celestialArc.progress * Math.PI) * 26))}%`,
+                }}
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 select-none text-lg drop-shadow-[0_0_10px_rgba(251,191,36,0.75)] transition-all duration-700 sm:text-2xl"
+              >
+                {celestialArc.isNight ? '🌙' : '☀️'}
+              </div>
+            </>
           )}
 
           {/* 1. Habitat Principal (esquerda) — Missão 2: Interior e Saúde */}
@@ -285,7 +312,7 @@ const BaseHubScene: React.FC = () => {
               }
             }}
             aria-disabled={!isSurvival && !mission2Unlocked}
-            className={`absolute left-[3%] top-[8%] min-h-[40px] rounded-sm border-2 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:left-[10%] sm:top-[34%] sm:px-2.5 ${
+            className={`absolute left-[8%] top-[23%] z-10 min-h-[38px] rounded-sm border-2 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:left-[12%] sm:top-[27%] sm:px-2.5 ${
               isSurvival || mission2Unlocked
                 ? 'cursor-pointer border-cyan-300'
                 : 'cursor-pointer border-slate-500/80 opacity-90'
@@ -300,17 +327,72 @@ const BaseHubScene: React.FC = () => {
             </span>
             <span className="font-dialog text-[10px] text-slate-200 sm:text-[11px]">
               {isSurvival
-                ? tx('Health & Training (-1 Turn) ▶', 'Saúde & Treino (-1 Turno) ▶')
+                ? tx('Health & Sleep ▶', 'Saúde & Sono ▶')
                 : mission2Completed
-                  ? 'Saúde OK ✓'
+                  ? tx('Health OK ✓', 'Saúde OK ✓')
                   : mission2Unlocked
-                    ? 'Missão 2: Saúde ▶'
-                    : 'Requer Painel Solar'}
+                    ? tx('Mission 2: Health ▶', 'Missão 2: Saúde ▶')
+                    : tx('Requires Solar', 'Requer Painel Solar')}
             </span>
           </button>
 
-          {/* 2. Astronauta personalizado (centro-esquerda) */}
-          <div className="absolute bottom-[7%] left-[5%] flex flex-col items-center sm:bottom-[10%] sm:left-[29%]">
+          {/* Sprites 16-bit + Pins de Disjuntores (Parede Esq. Habitat) e Bunker (Terreno Dir.) */}
+          {isSurvival && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  openModal('BREAKERS');
+                }}
+                className="group touch-none select-none absolute left-[9%] top-[59%] z-20 flex flex-col items-center transition hover:scale-105 sm:left-[10%] sm:top-[58%]"
+              >
+                <img
+                  src={ASSET_MANIFEST.survivalBreakerBox.path}
+                  alt={ASSET_MANIFEST.survivalBreakerBox.alt}
+                  className="pixel-art h-9 w-9 drop-shadow-[0_4px_6px_rgba(0,0,0,0.9)] sm:h-12 sm:w-12"
+                />
+                <span className="-mt-1 rounded-sm border-2 border-cyan-400 bg-slate-950/95 px-1.5 py-0.5 text-center shadow-lg">
+                  <span className="block font-pixel text-[6px] text-cyan-300 sm:text-[7px]">
+                    {tx('BREAKERS', 'DISJUNTORES')}
+                  </span>
+                  <span className="hidden font-dialog text-[9px] text-slate-200 sm:block">
+                    LED:{state.survival.breakers.greenhouseLeds ? 'ON' : 'OFF'} •{' '}
+                    {tx('Heat', 'Aq')}:{state.survival.breakers.habitatHeater ? 'ON' : 'OFF'}
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playClick();
+                  setSurvivalInBunker(true);
+                }}
+                className="group touch-none select-none absolute right-[5%] top-[36%] z-10 flex flex-col items-center transition hover:scale-105 sm:right-[7%] sm:top-[35%]"
+              >
+                <span
+                  className={`mb-0.5 flex items-center gap-1 rounded-sm border-2 px-1.5 py-0.5 text-center shadow-lg ${
+                    state.survival.stormEvent.phase === 'PREP_COUNTDOWN' ||
+                    state.survival.stormEvent.phase === 'IMPACT'
+                      ? 'animate-pulse border-rose-400 bg-rose-950/95 text-rose-100'
+                      : 'border-amber-400 bg-slate-950/95 text-amber-200'
+                  }`}
+                >
+                  <ShieldCheck className="h-3 w-3 shrink-0" />
+                  <span className="font-pixel text-[6px] sm:text-[7px]">BUNKER</span>
+                </span>
+                <img
+                  src={ASSET_MANIFEST.survivalBunkerEntrance.path}
+                  alt={ASSET_MANIFEST.survivalBunkerEntrance.alt}
+                  className="pixel-art h-14 w-14 drop-shadow-[0_6px_10px_rgba(0,0,0,0.85)] sm:h-20 sm:w-20"
+                />
+              </button>
+            </>
+          )}
+
+          {/* 2. Astronauta personalizado (em frente à porta do Habitat) */}
+          <div className="pointer-events-none absolute bottom-[5%] left-[25%] z-10 flex flex-col items-center sm:bottom-[8%] sm:left-[28%]">
             <AstronautAvatar profile={state.astronaut} size="md" />
             <span
               data-no-i18n="true"
@@ -327,15 +409,15 @@ const BaseHubScene: React.FC = () => {
               soundEngine.playClick();
               openModal('ARCADIA_MAP');
             }}
-            className="absolute bottom-[8%] left-[48%] flex min-h-[40px] -translate-x-1/2 flex-col items-center rounded-sm border-2 border-amber-300 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:bottom-[14%] sm:left-[46%] sm:translate-x-0 sm:px-2.5"
+            className="absolute bottom-[6%] left-[49%] z-10 flex min-h-[38px] -translate-x-1/2 flex-col items-center rounded-sm border-2 border-amber-300 bg-slate-950/90 px-2 py-1 text-center shadow-lg transition hover:scale-105 sm:bottom-[9%] sm:px-2.5"
           >
             <RoverSprite size="sm" />
-            <span className="inline-flex items-center gap-1 font-pixel text-[7px] text-amber-300 sm:text-[8px]">
+            <span className="inline-flex items-center gap-1 font-pixel text-[6.5px] text-amber-300 sm:text-[8px]">
               <Map className="h-3 w-3 shrink-0" />
-              ROVER EXPLORADOR
+              {tx('EXPLORER ROVER', 'ROVER EXPLORADOR')}
             </span>
             <span className="block font-dialog text-[10px] text-slate-200 sm:text-[11px]">
-              🗺️ Mapa de Arcadia ▶
+              {tx('🗺️ Arcadia Map ▶', '🗺️ Mapa de Arcadia ▶')}
             </span>
           </button>
 
@@ -343,7 +425,7 @@ const BaseHubScene: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenMission1}
-            className="group absolute bottom-[7%] right-[3%] flex flex-col items-center transition hover:scale-105 sm:bottom-[11%] sm:right-[6%]"
+            className="group absolute bottom-[5%] right-[3%] z-10 flex flex-col items-center transition hover:scale-105 sm:bottom-[7%] sm:right-[5%]"
           >
             {isSurvival || solarInstalled ? (
               <img
@@ -353,10 +435,10 @@ const BaseHubScene: React.FC = () => {
                     : ASSET_MANIFEST.solarPanelClean.path
                 }
                 alt={ASSET_MANIFEST.solarPanelClean.alt}
-                className="pixel-art h-14 w-14 drop-shadow-[0_6px_12px_rgba(0,0,0,0.6)] sm:h-24 sm:w-24"
+                className="pixel-art h-12 w-12 drop-shadow-[0_6px_12px_rgba(0,0,0,0.6)] sm:h-20 sm:w-20"
               />
             ) : (
-              <div className="mb-1 h-10 w-16 rounded-sm border-2 border-dashed border-amber-300 bg-amber-500/20 group-hover:bg-amber-400/30 sm:h-14 sm:w-24" />
+              <div className="mb-1 h-9 w-14 rounded-sm border-2 border-dashed border-amber-300 bg-amber-500/20 group-hover:bg-amber-400/30 sm:h-14 sm:w-24" />
             )}
             <span
               className={`rounded-sm border-2 px-1.5 py-0.5 text-center shadow-lg sm:px-2.5 sm:py-1 ${
@@ -369,514 +451,32 @@ const BaseHubScene: React.FC = () => {
                     : 'border-amber-300 bg-slate-950/95 text-amber-300'
               }`}
             >
-              <span className="block font-pixel text-[6.5px] sm:text-[8px]">
+              <span className="block font-pixel text-[6px] sm:text-[8px]">
                 {isSurvival
                   ? tx(
                       `PANELS (${state.survival.panelDustPct}% DUST)`,
                       `PAINÉIS (${state.survival.panelDustPct}% POEIRA)`
                     )
                   : solarInstalled
-                    ? `PAINÉIS ATIVOS (${state.mission1.generatedWatts || 480} W)`
-                    : 'ÁREA SOLAR (MISSÃO 1)'}
+                    ? tx(
+                        `PANELS ACTIVE (${state.mission1.generatedWatts || 480} W)`,
+                        `PAINÉIS ATIVOS (${state.mission1.generatedWatts || 480} W)`
+                      )
+                    : tx('SOLAR AREA (MISSION 1)', 'ÁREA SOLAR (MISSÃO 1)')}
               </span>
               <span className="font-dialog text-[10px] text-slate-200 sm:text-[11px]">
                 {isSurvival
-                  ? tx('Clean dust (-1 Turn) ▶', 'Limpar poeira (-1 Turno) ▶')
+                  ? tx('Clean dust (Real-time) ▶', 'Limpar poeira (Ao Vivo) ▶')
                   : solarInstalled
-                    ? 'Clique para gerenciar'
-                    : 'Clique para instalar ▶'}
+                    ? tx('Click to manage', 'Clique para gerenciar')
+                    : tx('Click to install ▶', 'Clique para instalar ▶')}
               </span>
             </span>
           </button>
         </div>
       </div>
 
-      {/* Briefing Dinâmico da Missão Atual + Cartuchos da Expedição */}
-      <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-sm border-2 border-amber-400/70 bg-slate-950 p-4">
-          {isSurvival ? (
-            <>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-amber-300">
-                  <SunMedium className="h-5 w-5 text-amber-300" />
-                  <h1 className="font-pixel text-xs">
-                    {dict.survival.baseHub.expeditionBadge(state.survival.sol)}
-                  </h1>
-                </div>
-                <span className="rounded-sm border border-amber-400/70 bg-amber-950/60 px-2 py-0.5 font-dialog text-[11px] font-bold text-amber-200">
-                  {survivalWeather.shortBadge} — {survivalWeather.title}
-                </span>
-              </div>
-
-              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
-                {tx(
-                  'Open operation across all 5 Arcadia Planitia sectors. Each Sol has ',
-                  'Operação livre pelos 5 setores de Arcadia Planitia. Cada Sol tem '
-                )}
-                <strong className="text-amber-300">
-                  {tx('4 Action Turns', '4 Turnos de Ação')}
-                </strong>
-                {tx(
-                  `. Manage Stamina, Solar Dust (${state.survival.panelDustPct}%), Water, Food, and Storm Protection before sleeping!`,
-                  `. Gerencie Stamina, Poeira Solar (${state.survival.panelDustPct}%), Água, Comida e Proteção contra Tempestades antes de dormir!`
-                )}
-              </p>
-
-              {localizedDominoAlerts.length > 0 && (
-                <div className="mt-2.5 space-y-1 rounded-sm border-2 border-rose-500/75 bg-rose-950/50 px-3 py-2 font-dialog text-xs text-rose-100">
-                  <span className="block font-pixel text-[8px] text-rose-300">
-                    ⚠️ {dict.survival.baseHub.cascadeTitle} ({localizedDominoAlerts.length})
-                  </span>
-                  {localizedDominoAlerts.map((alert) => (
-                    <p key={alert}>• {alert}</p>
-                  ))}
-                </div>
-              )}
-
-              {earlyWarningText && (
-                <div className="mt-2.5 rounded-sm border border-orange-400/70 bg-orange-950/50 px-3 py-2 font-dialog text-xs text-orange-100">
-                  {earlyWarningText}
-                </div>
-              )}
-
-              {state.survival.turnsLeft <= 0 && (
-                <div className="mt-2.5 rounded-sm border border-indigo-400 bg-indigo-950/60 px-3 py-2 font-dialog text-xs font-bold text-indigo-100">
-                  {tx(
-                    `Turns for Sol ${state.survival.sol} depleted (0/4). Click "Sleep" to advance to Sol ${Math.min(30, state.survival.sol + 1)}/30!`,
-                    `Turnos do Sol ${state.survival.sol} esgotados (0/4). Clique em "Dormir" para avançar para o Sol ${Math.min(30, state.survival.sol + 1)}/30!`
-                  )}
-                </div>
-              )}
-            </>
-          ) : mission5Unlocked ? (
-            <>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-orange-300">
-                  <ShieldAlert className="h-5 w-5 text-orange-300" />
-                  <h1 className="font-pixel text-xs">{mission5.title}</h1>
-                </div>
-                <span
-                  className={`rounded-sm border px-2 py-0.5 font-dialog text-[11px] ${
-                    mission5Completed
-                      ? 'border-emerald-400 bg-emerald-950/80 text-emerald-300'
-                      : 'border-orange-400 bg-orange-950/60 text-orange-200'
-                  }`}
-                >
-                  {mission5Completed ? '✓ CONCLUÍDA' : 'DESBLOQUEADA'}
-                </span>
-              </div>
-
-              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
-                {mission5.scientificObjective}
-              </p>
-
-              <div className="mt-3 rounded-sm border border-orange-500/40 bg-slate-900 p-2.5">
-                <span className="block font-pixel text-[8px] text-orange-300">
-                  REFERÊNCIA CIENTÍFICA ({mission5.nasaReference})
-                </span>
-                <p className="mt-1 font-dialog text-xs text-orange-100">
-                  Tempestade de Poeira • Limpeza Remota • Abrigo Blindado contra Radiação Solar (H2O + Regolito)
-                </p>
-              </div>
-            </>
-          ) : mission4Unlocked ? (
-            <>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-emerald-300">
-                  <Sprout className="h-5 w-5 text-emerald-300" />
-                  <h1 className="font-pixel text-xs">{mission4.title}</h1>
-                </div>
-                <span
-                  className={`rounded-sm border px-2 py-0.5 font-dialog text-[11px] ${
-                    mission4Completed
-                      ? 'border-emerald-400 bg-emerald-950/80 text-emerald-300'
-                      : 'border-emerald-400 bg-emerald-950/60 text-emerald-200'
-                  }`}
-                >
-                  {mission4Completed ? '✓ CONCLUÍDA' : 'DESBLOQUEADA'}
-                </span>
-              </div>
-
-              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
-                {mission4.scientificObjective}
-              </p>
-
-              <div className="mt-3 rounded-sm border border-emerald-500/40 bg-slate-900 p-2.5">
-                <span className="block font-pixel text-[8px] text-emerald-300">
-                  REFERÊNCIA CIENTÍFICA ({mission4.nasaReference})
-                </span>
-                <p className="mt-1 font-dialog text-xs text-emerald-100">
-                  Hidroponia & Aeroponia • Controle LED e Clima • Ciclo Bioregenerativo (Comida + O2 + Água)
-                </p>
-              </div>
-            </>
-          ) : mission3Unlocked ? (
-            <>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-cyan-300">
-                  <Snowflake className="h-5 w-5 text-cyan-300" />
-                  <h1 className="font-pixel text-xs">{mission3.title}</h1>
-                </div>
-                <span
-                  className={`rounded-sm border px-2 py-0.5 font-dialog text-[11px] ${
-                    mission3Completed
-                      ? 'border-emerald-400 bg-emerald-950/80 text-emerald-300'
-                      : 'border-cyan-400 bg-cyan-950/70 text-cyan-200'
-                  }`}
-                >
-                  {mission3Completed ? '✓ CONCLUÍDA' : 'DESBLOQUEADA'}
-                </span>
-              </div>
-
-              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
-                {mission3.scientificObjective}
-              </p>
-
-              <div className="mt-3 rounded-sm border border-cyan-500/40 bg-slate-900 p-2.5">
-                <span className="block font-pixel text-[8px] text-cyan-300">
-                  REFERÊNCIA CIENTÍFICA ({mission3.nasaReference})
-                </span>
-                <p className="mt-1 font-dialog text-xs text-cyan-100">
-                  HiRISE + Radar SHARAD • Perfuração Exploratória • Filtragem e Potabilidade
-                </p>
-              </div>
-            </>
-          ) : mission2Unlocked ? (
-            <>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-cyan-300">
-                  <HeartPulse className="h-5 w-5 text-rose-400" />
-                  <h1 className="font-pixel text-xs">{mission2.title}</h1>
-                </div>
-                <span
-                  className={`rounded-sm border px-2 py-0.5 font-dialog text-[11px] ${
-                    mission2Completed
-                      ? 'border-emerald-400 bg-emerald-950/80 text-emerald-300'
-                      : 'border-cyan-400 bg-cyan-950/70 text-cyan-200'
-                  }`}
-                >
-                  {mission2Completed ? '✓ CONCLUÍDA' : 'DESBLOQUEADA'}
-                </span>
-              </div>
-
-              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
-                {mission2.scientificObjective}
-              </p>
-
-              <div className="mt-3 rounded-sm border border-cyan-500/40 bg-slate-900 p-2.5">
-                <span className="block font-pixel text-[8px] text-cyan-300">
-                  REFERÊNCIA CIENTÍFICA ({mission2.nasaReference})
-                </span>
-                <p className="mt-1 font-dialog text-xs text-cyan-100">
-                  Estação de Treino • Refeitório Equilibrado • Higiene Espacial • Cena Especial da Capi
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-amber-300">
-                  <SunMedium className="h-5 w-5" />
-                  <h1 className="font-pixel text-xs">{mission1.title}</h1>
-                </div>
-                <span
-                  className={`rounded-sm border px-2 py-0.5 font-dialog text-[11px] ${
-                    mission1Completed
-                      ? 'border-emerald-400 bg-emerald-950/80 text-emerald-300'
-                      : 'border-amber-400 bg-amber-950/70 text-amber-200'
-                  }`}
-                >
-                  {mission1Completed ? '✓ CONCLUÍDA' : 'DISPONÍVEL'}
-                </span>
-              </div>
-
-              <p className="font-dialog text-xs leading-relaxed text-slate-200 sm:text-sm">
-                {mission1.scientificObjective}
-              </p>
-
-              <div className="mt-3 rounded-sm border border-cyan-500/40 bg-slate-900 p-2.5">
-                <span className="block font-pixel text-[8px] text-cyan-300">
-                  MODELO SOLAR DE REFERÊNCIA ({mission1.nasaReference})
-                </span>
-                <p className="mt-1 font-dialog text-xs text-cyan-100">
-                  Z = arccos(sin δ · sin φ + cos δ · cos φ · cos H) &nbsp;|&nbsp; h = 90° − Z
-                </p>
-              </div>
-            </>
-          )}
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {isSurvival && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleOpenMission1}
-                  className="pixel-btn inline-flex items-center gap-1.5 bg-amber-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-amber-300"
-                >
-                  <SunMedium className="h-3.5 w-3.5" />
-                  {tx('1. Solar', '1. Solar')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenMission2}
-                  className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-cyan-300"
-                >
-                  <HeartPulse className="h-3.5 w-3.5" />
-                  {tx('2. Health', '2. Saúde')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenMission3}
-                  className="pixel-btn inline-flex items-center gap-1.5 bg-sky-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-sky-300"
-                >
-                  <Snowflake className="h-3.5 w-3.5" />
-                  {tx('3. Ice/Water', '3. Gelo/Água')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenMission4}
-                  className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-emerald-300"
-                >
-                  <Sprout className="h-3.5 w-3.5" />
-                  {tx('4. Greenhouse', '4. Estufa')}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenMission5}
-                  className="pixel-btn inline-flex items-center gap-1.5 bg-orange-400 px-3 py-2 font-pixel text-[9px] text-slate-950 hover:bg-orange-300"
-                >
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  {tx('5. Shelter', '5. Abrigo')}
-                </button>
-              </>
-            )}
-
-            {!isSurvival && endingUnlocked && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleOpenEarthComms}
-                  className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-cyan-300"
-                >
-                  <Satellite className="h-4 w-4" />
-                  Central de Comunicação (Cena 6) ▶
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenFutureMars}
-                  className="pixel-btn inline-flex items-center gap-1.5 bg-amber-300 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-amber-200"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Futuro em Marte (Cena 7) ▶
-                </button>
-              </>
-            )}
-
-            {!isSurvival && mission5Unlocked && (
-              <button
-                type="button"
-                onClick={handleOpenMission5}
-                className="pixel-btn inline-flex items-center gap-1.5 bg-orange-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-orange-300"
-              >
-                <ShieldAlert className="h-4 w-4" />
-                {mission5Completed
-                  ? 'Rever Missão 5: Tempestades ▶'
-                  : 'Iniciar Missão 5: Tempestades em Marte ▶'}
-              </button>
-            )}
-
-            {!isSurvival && mission4Unlocked && (
-              <button
-                type="button"
-                onClick={handleOpenMission4}
-                className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300"
-              >
-                <Sprout className="h-4 w-4" />
-                {mission4Completed
-                  ? 'Rever Missão 4: Estufa ▶'
-                  : 'Iniciar Missão 4: A Primeira Estufa ▶'}
-              </button>
-            )}
-
-            {!isSurvival && mission3Unlocked && (
-              <button
-                type="button"
-                onClick={handleOpenMission3}
-                className="pixel-btn inline-flex items-center gap-1.5 bg-sky-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-sky-300"
-              >
-                <Snowflake className="h-4 w-4" />
-                {mission3Completed
-                  ? 'Rever Missão 3: Gelo ▶'
-                  : 'Iniciar Missão 3: O Mistério do Gelo ▶'}
-              </button>
-            )}
-
-            {!isSurvival && mission2Unlocked && (
-              <button
-                type="button"
-                onClick={handleOpenMission2}
-                className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-cyan-300"
-              >
-                <HeartPulse className="h-4 w-4" />
-                {mission2Completed
-                  ? 'Rever Missão 2: Saúde ▶'
-                  : 'Iniciar Missão 2: Cuidando do Astronauta ▶'}
-              </button>
-            )}
-
-            {!isSurvival && (
-              <button
-                type="button"
-                onClick={handleOpenMission1}
-                className="pixel-btn inline-flex items-center gap-1.5 bg-emerald-400 px-3.5 py-2 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300"
-              >
-                <SunMedium className="h-4 w-4" />
-                {solarInstalled
-                  ? 'Painel da Missão 1 ▶'
-                  : 'Iniciar Missão 1: Energia Solar ▶'}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playClick();
-                openModal('ARCADIA_MAP');
-              }}
-              className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-cyan-300"
-            >
-              <Map className="h-3.5 w-3.5" />
-              Mapa de Arcadia
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playClick();
-                openModal('LOGBOOK');
-              }}
-              className="pixel-btn inline-flex items-center gap-1.5 bg-amber-400 px-3 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-amber-300"
-            >
-              <BookOpen className="h-3.5 w-3.5" />
-              Diário
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                soundEngine.playClick();
-                openModal('SLEEP_REPORT');
-              }}
-              className="pixel-btn inline-flex items-center gap-1.5 bg-indigo-400 px-3 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-indigo-300"
-            >
-              <Moon className="h-3.5 w-3.5" />
-              Dormir
-            </button>
-          </div>
-        </div>
-
-        {/* Registro modular das 5 missões */}
-        <div className="rounded-sm border-2 border-slate-800 bg-slate-950 p-4">
-          <div className="mb-2 flex items-center gap-2 text-cyan-300">
-            <Sparkles className="h-4 w-4" />
-            <h2 className="font-pixel text-[10px]">
-              {tx('EXPEDITION CARTRIDGES', 'CARTUCHOS DA EXPEDIÇÃO')}
-            </h2>
-          </div>
-          <p className="mb-2.5 font-dialog text-[11px] text-slate-400">
-            {getLocalizedEarthSyncStatus(state.lastEarthSyncStatus, dict, translateText)}
-          </p>
-          <ul className="space-y-2">
-            {MISSION_REGISTRY.map((mission) => {
-              const isM1Done = mission.id === 'MISSION_1' && mission1Completed;
-              const isM2Done = mission.id === 'MISSION_2' && mission2Completed;
-              const isM3Done = mission.id === 'MISSION_3' && mission3Completed;
-              const isM4Done = mission.id === 'MISSION_4' && mission4Completed;
-              const isM5Done = mission.id === 'MISSION_5' && mission5Completed;
-              const isM2Unlocked = mission.id === 'MISSION_2' && mission2Unlocked;
-              const isM3Unlocked = mission.id === 'MISSION_3' && mission3Unlocked;
-              const isM4Unlocked = mission.id === 'MISSION_4' && mission4Unlocked;
-              const isM5Unlocked = mission.id === 'MISSION_5' && mission5Unlocked;
-              const isDone = !isSurvival && (isM1Done || isM2Done || isM3Done || isM4Done || isM5Done);
-              const isClickable =
-                isSurvival ||
-                mission.id === 'MISSION_1' ||
-                isM2Unlocked ||
-                isM3Unlocked ||
-                isM4Unlocked ||
-                isM5Unlocked;
-              const survivalRule = isSurvival
-                ? getLocalizedStationRule(mission.id as SurvivalStationId, dict)
-                : null;
-
-              return (
-                <li key={mission.id}>
-                  <button
-                    type="button"
-                    aria-disabled={!isClickable}
-                    onClick={() => {
-                      if (!isClickable) {
-                        soundEngine.playAlert();
-                        setHubFeedback({ kind: 'LOCKED_MISSION', missionId: mission.id });
-                        return;
-                      }
-                      setHubFeedback(null);
-                      if (mission.id === 'MISSION_1') handleOpenMission1();
-                      if (mission.id === 'MISSION_2') handleOpenMission2();
-                      if (mission.id === 'MISSION_3') handleOpenMission3();
-                      if (mission.id === 'MISSION_4') handleOpenMission4();
-                      if (mission.id === 'MISSION_5') handleOpenMission5();
-                    }}
-                    className={`flex w-full cursor-pointer items-start justify-between gap-2 rounded-sm border p-2 text-left transition ${
-                      isDone
-                        ? 'border-emerald-400/70 bg-emerald-950/30 hover:bg-emerald-950/50'
-                        : isClickable
-                        ? 'border-amber-400/70 bg-amber-950/30 hover:bg-amber-950/50'
-                        : 'border-slate-800 bg-slate-900/60 opacity-80 hover:border-slate-600'
-                    }`}
-                  >
-                    <div>
-                      <p className="font-dialog text-xs font-bold text-slate-100">
-                        {survivalRule ? survivalRule.title : mission.title}
-                      </p>
-                      <p className="font-dialog text-[10px] text-slate-400">
-                        {survivalRule
-                          ? `${survivalRule.costLabel} • ${survivalRule.rewardLabel}`
-                          : isM5Unlocked && !isM5Done
-                          ? 'DESBLOQUEADA! Clique para iniciar ▶'
-                          : isM4Unlocked && !isM4Done
-                          ? 'DESBLOQUEADA! Clique para iniciar ▶'
-                          : isM3Unlocked && !isM3Done
-                          ? 'DESBLOQUEADA! Clique para iniciar ▶'
-                          : isM2Unlocked && !isM2Done
-                          ? 'DESBLOQUEADA! Clique para iniciar ▶'
-                          : mission.subtitle}
-                      </p>
-                    </div>
-                    {isDone ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                    ) : isM5Unlocked || (isSurvival && mission.id === 'MISSION_5') ? (
-                      <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" />
-                    ) : isM4Unlocked || (isSurvival && mission.id === 'MISSION_4') ? (
-                      <Sprout className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-                    ) : isM3Unlocked || (isSurvival && mission.id === 'MISSION_3') ? (
-                      <Snowflake className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                    ) : isM2Unlocked || (isSurvival && mission.id === 'MISSION_2') ? (
-                      <HeartPulse className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
-                    ) : mission.id === 'MISSION_1' ? (
-                      <SunMedium className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                    ) : (
-                      <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
-
-      <CapiAssistant lines={capiLines} />
+      <CapiAssistant lines={capiLines} compact />
       <SurvivalResultOverlay />
     </section>
   );

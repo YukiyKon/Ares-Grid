@@ -6,6 +6,9 @@ import { TopStatusHUD } from './components/permanent/TopStatusHUD';
 import { GameProvider, useGameStore } from './core/gameStore';
 import { SceneManager } from './core/SceneManager';
 import { LanguageProvider, LanguageToggleButton } from './i18n/LanguageContext';
+import { BreakerPanelModal } from './modes/survival30/BreakerPanelModal';
+import { BunkerModal } from './modes/survival30/BunkerModal';
+import { FaintRescueOverlay } from './modes/survival30/FaintRescueOverlay';
 import { SurvivalCrisisOverlay } from './modes/survival30/SurvivalCrisisOverlay';
 
 const INTRO_FLOATING_LANG_SCENES = new Set([
@@ -31,10 +34,11 @@ const IntroFloatingLangToggle: React.FC = () => {
 const AppShell: React.FC = () => {
   const { state } = useGameStore();
   const isArcade = state.currentScene === 'ARCADE_RUSH';
+  const isBaseHub = state.currentScene === 'BASE_HUB';
   return (
     <div
-      className={`min-h-[100dvh] w-full overflow-x-hidden bg-black text-slate-100 ${
-        isArcade ? 'pb-4' : 'pb-36 sm:pb-32'
+      className={`flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-black text-slate-100 ${
+        isArcade ? 'pb-4' : isBaseHub ? 'pb-2' : 'pb-36 sm:pb-32'
       }`}
     >
       <TopStatusHUD />
@@ -43,6 +47,9 @@ const AppShell: React.FC = () => {
       <ArcadiaMapModal />
       <LogbookModal />
       <SleepReportModal />
+      <BreakerPanelModal />
+      <BunkerModal />
+      <FaintRescueOverlay />
       <SurvivalCrisisOverlay />
     </div>
   );

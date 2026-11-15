@@ -58,8 +58,16 @@ export const SleepReportModal: React.FC = () => {
 
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const nightlyReport = state.survival.lastNightlyReport;
-  const nextWeather = isSurvival ? getSolWeather(state.survival.sol) : null;
-  const nextWarning = isSurvival ? getNextSolEarlyWarning(state.survival.sol) : null;
+  const nextWeather = isSurvival
+    ? getSolWeather(state.survival.sol, state.survival.stormSchedule)
+    : null;
+  const nextWarning = isSurvival
+    ? getNextSolEarlyWarning(
+        state.survival.sol,
+        state.survival.stormSchedule,
+        state.survival.breakers.orbitalRadar
+      )
+    : null;
   const rawActiveLog = isSurvival
     ? step === 7 && nightlyReport?.dailyLogSnapshot
       ? nightlyReport.dailyLogSnapshot
@@ -79,6 +87,7 @@ export const SleepReportModal: React.FC = () => {
     : null;
 
   const coldPowerSave =
+    !state.survival.breakers.habitatHeater ||
     state.survival.powerSaveActive ||
     Boolean(
       nightlyReport?.powerSaveTriggered ||
@@ -248,8 +257,8 @@ export const SleepReportModal: React.FC = () => {
       number: 7,
       title: tx('7. Confirmation & Sunrise', '7. Confirmação e Amanhecer'),
       capiSpeech: tx(
-        'Good morning, Commander! Your rest is complete and the real Sol report has been updated. Let us prepare for today’s exploration!',
-        'Bom dia, comandante! Seu descanso terminou e o relatório real do Sol foi atualizado. Vamos preparar a próxima exploração!'
+        'Good morning, Commander! Voluntary sleep before 02:00 AM restored 100% Stamina and +15% Health, waking on time at 06:00 AM!',
+        'Bom dia, Comandante! Dormir voluntariamente antes das 02:00 AM restaurou 100% Stamina e +15% Saúde, acordando pontualmente às 06:00 AM!'
       ),
       icon: <Sun className="h-5 w-5 text-yellow-300" />,
     },

@@ -18,6 +18,7 @@ import {
 } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { isMarsNight } from '../../modes/survival30/survivalTypes';
 
 const GROWTH_LABELS: Record<0 | 1 | 2 | 3, { stage: string; height: string; roots: string }> = {
   0: {
@@ -59,8 +60,8 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
   onComplete,
   onCapiFeedback,
 }) => {
-  const { state, updateMission4 } = useGameStore();
-  const { dict } = useLanguage();
+  const { state, updateMission4, interactGreenhousePlot } = useGameStore();
+  const { dict, tx } = useLanguage();
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const { envSettings, growthStage, selectedCrops } = state.mission4;
 
@@ -246,8 +247,127 @@ export const Step4GrowthMonitor: React.FC<Step4GrowthMonitorProps> = ({
     { slot: 'ornamental', icon: '🌸', name: selectedCrops.ornamental ?? 'Flores Ornamentais' },
   ];
 
+  const nightNow = isMarsNight(state.survival.clockMinutes);
+  const ledsOffAtNight = nightNow && !state.survival.breakers.greenhouseLeds;
+  const rt = dict.survival.realtime;
+
+  const cropStageImage = (stage: 'EMPTY' | 'SEED' | 'SPROUT' | 'GROWING' | 'MATURE') => {
+    switch (stage) {
+      case 'MATURE':
+        return ASSET_MANIFEST.survivalCropMature.path;
+      case 'GROWING':
+        return ASSET_MANIFEST.survivalCropGrowing.path;
+      case 'SPROUT':
+        return ASSET_MANIFEST.survivalCropSprout.path;
+      case 'SEED':
+      case 'EMPTY':
+      default:
+        return ASSET_MANIFEST.survivalCropSeed.path;
+    }
+  };
+
   return (
     <div className="space-y-4 pb-32">
+      {/* Estufa em Tempo Real Multi-Sol (2 a 3 Sols) no Modo Sobrevivência */}
+      {isSurvival && (
+        <div className="rounded-sm border-2 border-lime-400/75 bg-slate-950 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sprout className="h-4 w-4 text-lime-300" />
+              <h2 className="font-pixel text-[10px] text-lime-200 sm:text-[11px]">
+                {tx(
+                  'LIVE HYDROPONIC TRAYS (2–3 SOL MATURATION)',
+                  'BANDEJAS HIDROPÔNICAS AO VIVO (CRESCIMENTO EM 2–3 SOLS)'
+                )}
+              </h2>
+            </div>
+            {ledsOffAtNight && (
+              <span className="rounded-sm border border-amber-400 bg-amber-950/70 px-2 py-0.5 font-dialog text-[11px] text-amber-200">
+                💡 {rt.cropPausedLed}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {state.survival.greenhousePlots.map((plot) => {
+              const pct = Math.min(
+                100,
+                Math.round((plot.growthHours / Math.max(1, plot.targetHours)) * 100)
+              );
+              const cropNames: Record<'LETTUCE' | 'STRAWBERRY' | 'WHEAT' | 'HERBS', string> = {
+                LETTUCE: tx('Space Lettuce', 'Alface Espacial'),
+                STRAWBERRY: tx('Mars Strawberries', 'Morango Marciano'),
+                WHEAT: tx('Dwarf Wheat', 'Trigo Anão'),
+                HERBS: tx('Medicinal Herbs', 'Ervas & Flores'),
+              };
+              const actionText =
+                plot.stage === 'EMPTY'
+                  ? rt.cropPlantAction
+                  : plot.stage === 'MATURE'
+                  ? rt.cropHarvestAction
+                  : rt.cropTendAction;
+
+              return (
+                <div
+                  key={plot.id}
+                  className={`flex flex-col justify-between rounded-sm border-2 p-2 ${
+                    plot.stage === 'MATURE'
+                      ? 'border-amber-400 bg-amber-950/30'
+                      : 'border-emerald-500/40 bg-slate-900'
+                  }`}
+                >
+                  <div>
+                    <img
+                      src={cropStageImage(plot.stage)}
+                      alt={cropNames[plot.cropKey]}
+                      className={`pixel-art mb-1.5 h-20 w-full rounded-sm object-cover ${
+                        plot.stage === 'EMPTY' ? 'opacity-35 grayscale' : ''
+                      }`}
+                    />
+                    <p className="font-pixel text-[8px] text-cyan-200">
+                      #{plot.id} {cropNames[plot.cropKey]}
+                    </p>
+                    <p className="mt-0.5 font-dialog text-[11px] text-emerald-200">
+                      {rt.cropStage[plot.stage]}
+                    </p>
+                    {plot.stage !== 'EMPTY' && (
+                      <div className="mt-1">
+                        <div className="h-2 w-full overflow-hidden rounded-sm bg-slate-950">
+                          <div
+                            style={{ width: `${pct}%` }}
+                            className={`h-full ${
+                              plot.stage === 'MATURE' ? 'bg-amber-400' : 'bg-lime-400'
+                            }`}
+                          />
+                        </div>
+                        <span className="font-dialog text-[10px] text-slate-400">
+                          {Math.floor(plot.growthHours)}h / {plot.targetHours}h ({pct}%)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEngine.playSuccess();
+                      interactGreenhousePlot(plot.id);
+                    }}
+                    className={`pixel-btn touch-none select-none mt-2 min-h-[38px] w-full px-2 py-1 font-dialog text-[11px] font-bold text-slate-950 ${
+                      plot.stage === 'MATURE'
+                        ? 'bg-amber-400 hover:bg-amber-300'
+                        : 'bg-emerald-400 hover:bg-emerald-300'
+                    }`}
+                  >
+                    {actionText}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-sm border-2 border-emerald-500/50 bg-slate-900/90 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">

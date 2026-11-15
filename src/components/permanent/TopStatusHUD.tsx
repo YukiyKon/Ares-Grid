@@ -2,20 +2,20 @@ import React, { useEffect, useState } from 'react';
 import {
   BatteryCharging,
   BookOpen,
+  Clock,
   Droplets,
+  FastForward,
   Flame,
   HeartPulse,
-  Map,
   Maximize2,
   Minimize2,
-  Moon,
+  Pause,
+  Play,
   RotateCcw,
-  ShieldAlert,
-  Timer,
+  Sun,
   Utensils,
   Volume2,
   VolumeX,
-  Zap,
 } from 'lucide-react';
 import {
   isFullscreenActive,
@@ -26,7 +26,13 @@ import { type GameSceneId, useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { LanguageToggleButton, useLanguage } from '../../i18n/LanguageContext';
 import { getLocalizedDominoAlerts } from '../../modes/survival30/survivalI18n';
-import { getSolWeather } from '../../modes/survival30/weatherScheduler';
+import {
+  canFastForwardNight,
+  formatMarsClock,
+  getCelestialArcProgress,
+  isMarsNight,
+} from '../../modes/survival30/survivalTypes';
+import { computeSolarEfficiency, getSolWeather } from '../../modes/survival30/weatherScheduler';
 import { AstronautAvatar } from './AstronautAvatar';
 
 const INTRO_SCENES: GameSceneId[] = [
@@ -42,22 +48,33 @@ export const TopStatusHUD: React.FC = () => {
   const {
     state,
     openModal,
-    setScene,
-    startSurvivalMode,
-    toggleGameMode,
-    triggerSurvivalCrisis,
+    toggleSurvivalClockPause,
+    toggleSurvivalFastForward2x,
     resetGame,
   } = useGameStore();
-  const { dict, lang, tx } = useLanguage();
+  const { dict } = useLanguage();
   const isArcade = state.currentScene === 'ARCADE_RUSH';
   const isSurvival = !isArcade && state.gameMode === 'SURVIVAL_30';
-  const survivalWeather = getSolWeather(state.survival.sol);
+  const survivalWeather = getSolWeather(state.survival.sol, state.survival.stormSchedule);
+  const clockStr = formatMarsClock(state.survival.clockMinutes);
+  const nightNow = isMarsNight(state.survival.clockMinutes);
+  const arcInfo = getCelestialArcProgress(state.survival.clockMinutes);
+  const fastForwardAllowed = canFastForwardNight(state.survival);
+  const solarCalc = computeSolarEfficiency(
+    state.survival.clockMinutes,
+    state.survival.panelDustPct,
+    survivalWeather.type,
+    state.survival.stormEvent.phase === 'IMPACT'
+  );
   const isDangerState =
     isSurvival &&
     state.survival.gameStatus === 'PLAYING' &&
-    (state.survival.energy < 30 ||
-      state.survival.water < 30 ||
+    (state.survival.energy < 25 ||
+      state.survival.water < 25 ||
       state.survival.health < 30 ||
+      state.survival.hunger <= 20 ||
+      state.survival.thirst <= 20 ||
+      state.survival.stormEvent.phase !== 'NONE' ||
       state.survival.activeCrisis !== null);
 
   const weatherBadgeText =
@@ -158,22 +175,118 @@ export const TopStatusHUD: React.FC = () => {
           </div>
         </div>
 
-        {/* Barras de Recursos (ocultas no Modo Arcade Rush para visual 100% enxuto) */}
+        {/* Barras de Recursos + Relógio em Tempo Real */}
         {isArcade ? null : isSurvival ? (
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <div className="flex items-center gap-1 rounded-sm border border-indigo-500/60 bg-slate-900 px-2 py-1 font-dialog text-xs">
-              <Timer className="h-3.5 w-3.5 text-indigo-300" />
-              <span className="text-slate-400">{dict.common.turns}:</span>
-              <strong className={state.survival.turnsLeft === 0 ? 'text-rose-300' : 'text-indigo-200'}>
-                {state.survival.turnsLeft}/4
+            {/* Relógio Digital Marciano + Arco Solar/Lunar */}
+            <div
+              className={`flex items-center gap-1.5 rounded-sm border px-2 py-1 font-dialog text-xs ${
+                state.survival.clockMinutes >= 1080
+                  ? 'border-rose-400 bg-rose-950/80 text-rose-100 animate-pulse'
+                  : nightNow
+                  ? 'border-indigo-400/70 bg-indigo-950/70 text-indigo-100'
+                  : 'border-amber-400/70 bg-slate-900 text-amber-100'
+              }`}
+              title={dict.survival.realtime.solarOutputLabel(
+                solarCalc.outputWatts,
+                solarCalc.effectivePct
+              )}
+            >
+              <Clock className="h-3.5 w-3.5 text-cyan-300" />
+              <strong className="font-pixel text-[9px]">
+                {dict.survival.realtime.clockBadge(state.survival.sol, clockStr)}
               </strong>
+              {/* Mini arco visual Sol/Lua */}
+              <span className="relative inline-block h-3.5 w-10 overflow-hidden rounded-t-full border-b border-slate-600 bg-slate-950/90">
+                <span
+                  style={{
+                    left: `${Math.round(arcInfo.progress * 82)}%`,
+                    bottom: `${Math.round(Math.sin(arcInfo.progress * Math.PI) * 55)}%`,
+                  }}
+                  className="absolute text-[9px] leading-none"
+                >
+                  {arcInfo.isNight ? '🌙' : '☀️'}
+                </span>
+              </span>
+              <span className="hidden text-[10px] text-amber-300 sm:inline">
+                {solarCalc.outputWatts}W
+              </span>
             </div>
+
+            {/* Botão Pausar / Continuar */}
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playClick();
+                toggleSurvivalClockPause();
+              }}
+              className={`touch-none select-none inline-flex min-h-[34px] items-center gap-1 rounded-sm border px-2 py-1 font-pixel text-[8px] ${
+                state.survival.clockPaused
+                  ? 'border-amber-400 bg-amber-400 text-slate-950 animate-pulse'
+                  : 'border-slate-600 bg-slate-900 text-slate-200 hover:border-cyan-400'
+              }`}
+              title={
+                state.survival.clockPaused
+                  ? dict.survival.realtime.resumeBtn
+                  : dict.survival.realtime.pauseBtn
+              }
+            >
+              {state.survival.clockPaused ? (
+                <Play className="h-3 w-3" />
+              ) : (
+                <Pause className="h-3 w-3" />
+              )}
+              <span className="hidden md:inline">
+                {state.survival.clockPaused ? dict.survival.realtime.pausedTag : '⏸'}
+              </span>
+            </button>
+
+            {/* Botão 2x Acelerar Noite (apenas à noite dentro do Habitat) */}
+            <button
+              type="button"
+              disabled={!fastForwardAllowed}
+              onClick={() => {
+                soundEngine.playClick();
+                toggleSurvivalFastForward2x();
+              }}
+              title={
+                fastForwardAllowed
+                  ? dict.survival.realtime.fastForwardBtn
+                  : dict.survival.realtime.fastForwardHintDisabled
+              }
+              className={`touch-none select-none inline-flex min-h-[34px] items-center gap-1 rounded-sm border px-2 py-1 font-pixel text-[8px] ${
+                !fastForwardAllowed
+                  ? 'cursor-not-allowed border-slate-800 bg-slate-900/50 text-slate-500 opacity-55'
+                  : state.survival.fastForward2x
+                  ? 'border-indigo-300 bg-indigo-400 text-slate-950 animate-pulse'
+                  : 'border-indigo-500/70 bg-indigo-950/70 text-indigo-200 hover:bg-indigo-900'
+              }`}
+            >
+              <FastForward className="h-3 w-3" />
+              2x
+            </button>
 
             <div className="flex items-center gap-1 rounded-sm border border-emerald-500/60 bg-slate-900 px-2 py-1 font-dialog text-xs">
               <Flame className="h-3.5 w-3.5 text-emerald-300" />
-              <span className="text-slate-400">{dict.common.stamina}:</span>
-              <strong className={state.survival.stamina < 20 ? 'text-rose-300' : 'text-emerald-300'}>
-                {state.survival.stamina}/{state.survival.maxStamina}%
+              <span className="hidden text-slate-400 sm:inline">{dict.common.stamina}:</span>
+              <strong className={state.survival.stamina < 25 ? 'text-rose-300' : 'text-emerald-300'}>
+                {state.survival.stamina}%
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-sm border border-orange-500/50 bg-slate-900 px-2 py-1 font-dialog text-xs">
+              <Utensils className="h-3.5 w-3.5 text-orange-300" />
+              <span className="hidden text-slate-400 lg:inline">{dict.survival.realtime.hungerLabel}:</span>
+              <strong className={state.survival.hunger <= 25 ? 'text-rose-300' : 'text-orange-200'}>
+                {state.survival.hunger}%
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-sm border border-cyan-500/50 bg-slate-900 px-2 py-1 font-dialog text-xs">
+              <Droplets className="h-3.5 w-3.5 text-cyan-300" />
+              <span className="hidden text-slate-400 lg:inline">{dict.survival.realtime.thirstLabel}:</span>
+              <strong className={state.survival.thirst <= 25 ? 'text-rose-300' : 'text-cyan-200'}>
+                {state.survival.thirst}%
               </strong>
             </div>
 
@@ -184,7 +297,7 @@ export const TopStatusHUD: React.FC = () => {
                   title={alerts.join(' | ')}
                   className="rounded-sm border border-rose-500/80 bg-rose-950/90 px-2 py-0.5 font-pixel text-[8px] text-rose-200 animate-pulse"
                 >
-                  ⚠️ {alerts.length} {dict.hud.cascadeBadge}
+                  ⚠️ {alerts.length}
                 </span>
               ) : null;
             })()}
@@ -194,31 +307,20 @@ export const TopStatusHUD: React.FC = () => {
               title={`${dict.hud.cascadeTooltipPrefix}: ${state.survival.panelDustPct}%`}
             >
               <BatteryCharging className="h-3.5 w-3.5 text-amber-300" />
-              <span className="text-slate-400">{dict.common.energy}:</span>
               <strong className={state.survival.energy <= 25 ? 'text-rose-300' : 'text-amber-200'}>
                 {state.survival.energy}%
               </strong>
             </div>
 
             <div className="flex items-center gap-1 rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 font-dialog text-xs">
-              <Droplets className="h-3.5 w-3.5 text-sky-400" />
-              <span className="text-slate-400">{dict.common.water}:</span>
+              <Sun className="h-3.5 w-3.5 text-sky-400" />
               <strong className={state.survival.water <= 25 ? 'text-rose-300' : 'text-sky-300'}>
                 {state.survival.water}%
               </strong>
             </div>
 
             <div className="flex items-center gap-1 rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 font-dialog text-xs">
-              <Utensils className="h-3.5 w-3.5 text-lime-300" />
-              <span className="text-slate-400">{dict.common.food}:</span>
-              <strong className={state.survival.foodRations === 0 ? 'text-rose-300' : 'text-lime-200'}>
-                {state.survival.foodRations}
-              </strong>
-            </div>
-
-            <div className="flex items-center gap-1 rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 font-dialog text-xs">
               <HeartPulse className="h-3.5 w-3.5 text-rose-400" />
-              <span className="text-slate-400">{dict.common.health}:</span>
               <strong className={state.survival.health <= 30 ? 'text-rose-400' : 'text-rose-300'}>
                 {state.survival.health}%
               </strong>
@@ -271,126 +373,21 @@ export const TopStatusHUD: React.FC = () => {
           </div>
         )}
 
-        {/* Botões Permanentes (Idioma / Modos / Mapa / Diário / Dormir / Som / Tela Cheia / Reset) */}
+        {/* Botões Permanentes (Idioma / Diário / Som / Tela Cheia / Reset) */}
         <div className="flex flex-wrap items-center gap-1.5">
           <LanguageToggleButton compact />
 
-          {isArcade ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  soundEngine.playClick();
-                  if (state.gameMode === 'SURVIVAL_30') {
-                    toggleGameMode();
-                  } else {
-                    setScene('BASE_HUB');
-                  }
-                }}
-                className="pixel-btn inline-flex min-h-[38px] items-center gap-1 bg-amber-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-amber-300"
-              >
-                {tx('Training', 'Treino')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  soundEngine.playClick();
-                  startSurvivalMode();
-                }}
-                className="pixel-btn inline-flex min-h-[38px] items-center gap-1 bg-emerald-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-emerald-300"
-              >
-                {dict.hud.switchToSurvival}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  soundEngine.playClick();
-                  toggleGameMode();
-                }}
-                className={`pixel-btn inline-flex min-h-[38px] items-center gap-1 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 ${
-                  isSurvival
-                    ? 'bg-emerald-400 hover:bg-emerald-300'
-                    : 'bg-orange-400 hover:bg-orange-300'
-                }`}
-              >
-                {isSurvival ? dict.hud.switchToTraining : dict.hud.switchToSurvival}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  soundEngine.unlock();
-                  soundEngine.playClick();
-                  setScene('ARCADE_RUSH');
-                }}
-                className="pixel-btn inline-flex min-h-[38px] items-center gap-1 bg-fuchsia-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-fuchsia-300"
-              >
-                <Zap className="h-3.5 w-3.5" />
-                {dict.arcade.hudBtn}
-              </button>
-            </>
-          )}
-
-          {isSurvival && (
-            <button
-              type="button"
-              onClick={() => {
-                triggerSurvivalCrisis();
-              }}
-              title={dict.hud.simulateCrisisTitle}
-              className="pixel-btn inline-flex min-h-[38px] items-center gap-1 bg-rose-500 px-2.5 py-1.5 font-dialog text-xs font-bold text-white hover:bg-rose-400"
-            >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              {dict.hud.simulateCrisisBtn}
-            </button>
-          )}
-
-          {!isArcade && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  soundEngine.playClick();
-                  openModal('ARCADIA_MAP');
-                }}
-                className="pixel-btn inline-flex min-h-[38px] items-center gap-1.5 bg-emerald-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-emerald-300 sm:px-3"
-              >
-                <Map className="h-3.5 w-3.5" />
-                {dict.hud.arcadiaMapBtn}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  soundEngine.playClick();
-                  openModal('LOGBOOK');
-                }}
-                className="pixel-btn inline-flex min-h-[38px] items-center gap-1.5 bg-amber-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-amber-300"
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                {dict.hud.logbookBtn} ({state.logbook.length})
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  soundEngine.playClick();
-                  openModal('SLEEP_REPORT');
-                }}
-                className={`pixel-btn inline-flex min-h-[38px] items-center gap-1.5 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 ${
-                  isSurvival && state.survival.turnsLeft === 0
-                    ? 'animate-pulse bg-indigo-300 hover:bg-indigo-200'
-                    : 'bg-indigo-400 hover:bg-indigo-300'
-                }`}
-              >
-                <Moon className="h-3.5 w-3.5" />
-                {dict.hud.sleepBtn}
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playClick();
+              openModal('LOGBOOK');
+            }}
+            className="pixel-btn inline-flex min-h-[38px] items-center gap-1.5 bg-amber-400 px-2.5 py-1.5 font-dialog text-xs font-bold text-slate-950 hover:bg-amber-300"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            {dict.hud.logbookBtn} ({state.logbook.length})
+          </button>
 
           <button
             type="button"
@@ -416,23 +413,6 @@ export const TopStatusHUD: React.FC = () => {
             )}
             <span>{isFullscreen ? dict.hud.fullscreenExitShort : dict.hud.fullscreenEnterShort}</span>
           </button>
-
-          <select
-            aria-label={tx('Navigate between mission scenes', 'Navegar entre cenas da Etapa 1')}
-            value={state.currentScene}
-            onChange={(e) => {
-              soundEngine.playClick();
-              setScene(e.target.value as GameSceneId);
-            }}
-            data-lang={lang}
-            className="min-h-[38px] rounded-sm border-2 border-slate-700 bg-slate-900 px-1.5 py-1 font-dialog text-[11px] text-cyan-200 focus:border-cyan-400 focus:outline-none"
-          >
-            {(Object.keys(dict.hud.sceneLabels) as GameSceneId[]).map((sceneId) => (
-              <option key={sceneId} value={sceneId}>
-                {dict.hud.sceneLabels[sceneId]}
-              </option>
-            ))}
-          </select>
 
           <button
             type="button"

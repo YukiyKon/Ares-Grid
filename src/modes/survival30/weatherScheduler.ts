@@ -4,6 +4,11 @@ export type SurvivalWeatherType =
   | 'GLOBAL_DUST_STORM'
   | 'SOLAR_RADIATION_FLARE';
 
+export type CampaignStormSchedule = Record<
+  number,
+  'GLOBAL_DUST_STORM' | 'SOLAR_RADIATION_FLARE'
+>;
+
 export interface SolWeatherInfo {
   sol: number;
   type: SurvivalWeatherType;
@@ -11,105 +16,227 @@ export interface SolWeatherInfo {
   shortBadge: string;
   description: string;
   capiAdvice: string;
-  solarMultiplier: number;
-  dustAccumulation: number;
+  solarEfficiencyMultiplier: number;
+  dailyDustAccumulation: number;
   isCritical: boolean;
   isModerateAlert: boolean;
-  requiredProtocol?: 'SEAL_HATCHES' | 'RADIATION_SHELTER';
 }
 
-const MODERATE_DUST_WIND_SOLS = new Set([3, 5, 9, 11, 14, 18, 21, 24, 27]);
-const GLOBAL_STORM_SOLS = new Set([6, 12, 22, 29]);
-const RADIATION_FLARE_SOLS = new Set([8, 15, 19, 25, 28]);
+const DEFAULT_STORM_SCHEDULE: CampaignStormSchedule = {
+  8: 'GLOBAL_DUST_STORM',
+  17: 'SOLAR_RADIATION_FLARE',
+  25: 'GLOBAL_DUST_STORM',
+};
 
-export function getSolWeather(sol: number): SolWeatherInfo {
-  if (GLOBAL_STORM_SOLS.has(sol)) {
+const MODERATE_DUST_WIND_SOLS = new Set([4, 11, 14, 21, 24, 28]);
+
+/**
+ * Gera uma programação aleatória de 2 a 3 tempestades extremas raras
+ * distribuídas ao longo dos 30 Sols da campanha.
+ */
+export function generateCampaignStormSchedule(): CampaignStormSchedule {
+  const count = Math.random() < 0.45 ? 2 : 3;
+  const pickRange = (min: number, max: number) =>
+    min + Math.floor(Math.random() * (max - min + 1));
+
+  const solA = pickRange(5, 10);
+  const solB = pickRange(14, 20);
+  const solC = pickRange(23, 28);
+
+  const schedule: CampaignStormSchedule = {};
+  const flip = Math.random() < 0.5;
+  schedule[solA] = flip ? 'GLOBAL_DUST_STORM' : 'SOLAR_RADIATION_FLARE';
+  schedule[solB] = flip ? 'SOLAR_RADIATION_FLARE' : 'GLOBAL_DUST_STORM';
+
+  if (count === 3) {
+    schedule[solC] = Math.random() < 0.5 ? 'GLOBAL_DUST_STORM' : 'SOLAR_RADIATION_FLARE';
+  }
+
+  return schedule;
+}
+
+export function getSolWeather(
+  sol: number,
+  stormSchedule?: CampaignStormSchedule
+): SolWeatherInfo {
+  const safeSol = Math.max(1, Math.min(30, sol));
+  const schedule =
+    stormSchedule && Object.keys(stormSchedule).length > 0
+      ? stormSchedule
+      : DEFAULT_STORM_SCHEDULE;
+
+  const criticalType = schedule[safeSol];
+
+  if (criticalType === 'SOLAR_RADIATION_FLARE') {
     return {
-      sol,
+      sol: safeSol,
+      type: 'SOLAR_RADIATION_FLARE',
+      title: 'Tempestade de Radiação Solar',
+      shortBadge: '☢️ Alerta Solar',
+      description:
+        'Partículas solares de alta energia atingem Marte. Entre no Bunker Blindado antes do impacto!',
+      capiAdvice:
+        'ALERTA SOLAR CRÍTICO! Desligue disjuntores não essenciais e abrigue-se no Bunker!',
+      solarEfficiencyMultiplier: 0.9,
+      dailyDustAccumulation: 10,
+      isCritical: true,
+      isModerateAlert: false,
+    };
+  }
+
+  if (criticalType === 'GLOBAL_DUST_STORM') {
+    return {
+      sol: safeSol,
       type: 'GLOBAL_DUST_STORM',
       title: 'Tempestade Global de Poeira',
-      shortBadge: 'CRÍTICO: TEMPESTADE',
+      shortBadge: '⛈️ Tempestade Crítica',
       description:
-        'Ventos intensos carregados de óxido de ferro bloqueiam quase toda a luz solar em Arcadia Planitia e pressionam as comportas do habitat.',
+        'Tempestade marciana extrema com ventos e poeira espessa! Abrigue-se no Bunker e limpe os painéis depois.',
       capiAdvice:
-        'ALERTA CRÍTICO! Sem proteção na Estação 5 (Abrigo & Escotilhas) antes de dormir, energia e saúde despencarão!',
-      solarMultiplier: 0.22,
-      dustAccumulation: 48,
+        'PERIGO! Complete o checklist de tempestade e entre no Bunker Blindado antes que o contador zere!',
+      solarEfficiencyMultiplier: 0.18,
+      dailyDustAccumulation: 36,
       isCritical: true,
       isModerateAlert: false,
-      requiredProtocol: 'SEAL_HATCHES',
     };
   }
 
-  if (RADIATION_FLARE_SOLS.has(sol)) {
+  if (MODERATE_DUST_WIND_SOLS.has(safeSol)) {
     return {
-      sol,
-      type: 'SOLAR_RADIATION_FLARE',
-      title: 'Erupção Solar / Radiação Invisível',
-      shortBadge: 'CRÍTICO: RADIAÇÃO',
-      description:
-        'Tempestade severa de prótons solares atinge Marte! Como o planeta não possui campo magnético global forte, o abrigo blindado é questão de vida ou morte.',
-      capiAdvice:
-        'ALERTA DE RADIAÇÃO! Corra para a Estação 5 (Abrigo Blindado com H₂O e regolito) antes de encerrar o Sol!',
-      solarMultiplier: 0.78,
-      dustAccumulation: 18,
-      isCritical: true,
-      isModerateAlert: false,
-      requiredProtocol: 'RADIATION_SHELTER',
-    };
-  }
-
-  if (MODERATE_DUST_WIND_SOLS.has(sol)) {
-    return {
-      sol,
+      sol: safeSol,
       type: 'DUST_WIND',
-      title: 'Vento de Poeira / Queda Sazonal',
-      shortBadge: 'MODERADO: POEIRA',
+      title: 'Vento de Poeira Fina',
+      shortBadge: '🌪️ Vento de Poeira',
       description:
-        'Rajadas cobrem rapidamente os painéis solares (+32% de poeira) e cortam a geração fotovoltaica pela metade sem manutenção.',
+        'Rajadas de vento depositam poeira rápida sobre os painéis solares (-28% de eficiência solar).',
       capiAdvice:
-        'Atenção: limpe os painéis na Estação 1 (Solar) ou ative o Modo Economia sob risco de resfriar a estufa à noite!',
-      solarMultiplier: 0.52,
-      dustAccumulation: 32,
+        'Poeira em alta! Limpe os painéis solares no Setor 1 para manter o pico de geração do meio-dia.',
+      solarEfficiencyMultiplier: 0.72,
+      dailyDustAccumulation: 22,
       isCritical: false,
       isModerateAlert: true,
     };
   }
 
   return {
-    sol,
+    sol: safeSol,
     type: 'CLEAR',
-    title: 'Céu Limpo — Atmosfera Seca',
-    shortBadge: 'CÉU LIMPO',
+    title: 'Céu Marciano Limpo',
+    shortBadge: '☀️ Céu Limpo',
     description:
-      'Incidência solar nominal em Arcadia Planitia (~39.2°N), porém poeira fina contínua (+18% por Sol) e consumo rígido de água e energia exigem escolhas cirúrgicas.',
+      'Boa incidência solar (~590 W/m² em Arcadia). Poeira atmosférica moderada se acumulando.',
     capiAdvice:
-      '4 Turnos não bastam para todas as estações! Priorize apenas o setor crítico deste Sol e monitore o efeito dominó.',
-    solarMultiplier: 1.0,
-    dustAccumulation: 18,
+      'Sol favorável para carregar baterias ao meio-dia! Cuide da estufa, água e comida.',
+    solarEfficiencyMultiplier: 1,
+    dailyDustAccumulation: 10,
     isCritical: false,
     isModerateAlert: false,
   };
 }
 
 /**
- * Capi sempre avisa 1 Sol antes caso o Sol seguinte tenha alerta moderado ou crítico
- * (em especial Sols 7, 14, 21 e 27 antes das tempestades/erupções).
+ * Calcula a eficiência solar proporcional ao ângulo do Sol no relógio marciano:
+ * - Noite (18:00–06:00 / clockMinutes >= 720): 0% (0 W)
+ * - Manhã (07:00 / 60m): ~30%
+ * - Pico Meio-Dia (11:00–14:30 / 300m–510m): 100%
+ * - Entardecer (17:00 / 660m): ~25%
+ * Sempre descontando a poeira acumulada e multiplicadores climáticos.
  */
-export function getNextSolEarlyWarning(currentSol: number): SolWeatherInfo | null {
-  if (currentSol >= 30) return null;
-  const nextWeather = getSolWeather(currentSol + 1);
-  if (nextWeather.type === 'CLEAR') return null;
-  return nextWeather;
+export function computeSolarEfficiency(
+  clockMinutes: number,
+  panelDustPct: number,
+  weatherType: SurvivalWeatherType,
+  stormActive = false
+): {
+  angleFactor: number;
+  anglePct: number;
+  effectivePct: number;
+  outputWatts: number;
+} {
+  // Noite marciana (18:00 até 02:00+): 0 W
+  if (clockMinutes >= 720 || clockMinutes < 0) {
+    return {
+      angleFactor: 0,
+      anglePct: 0,
+      effectivePct: 0,
+      outputWatts: 0,
+    };
+  }
+
+  let angleFactor = 0;
+  if (clockMinutes < 60) {
+    // 06:00 (0m) -> 07:00 (60m): 0.12 -> 0.30
+    angleFactor = 0.12 + (clockMinutes / 60) * 0.18;
+  } else if (clockMinutes < 300) {
+    // 07:00 (60m) -> 11:00 (300m): 0.30 -> 1.00
+    angleFactor = 0.3 + ((clockMinutes - 60) / 240) * 0.7;
+  } else if (clockMinutes <= 510) {
+    // 11:00 (300m) -> 14:30 (510m): pico 100%
+    angleFactor = 1.0;
+  } else if (clockMinutes < 660) {
+    // 14:30 (510m) -> 17:00 (660m): 1.00 -> 0.25
+    angleFactor = 1.0 - ((clockMinutes - 510) / 150) * 0.75;
+  } else {
+    // 17:00 (660m) -> 18:00 (720m): 0.25 -> 0.00
+    angleFactor = Math.max(0, 0.25 * (1 - (clockMinutes - 660) / 60));
+  }
+
+  const weatherFactor = stormActive
+    ? 0.14
+    : weatherType === 'GLOBAL_DUST_STORM'
+    ? 0.22
+    : weatherType === 'DUST_WIND'
+    ? 0.72
+    : weatherType === 'SOLAR_RADIATION_FLARE'
+    ? 0.9
+    : 1.0;
+
+  const dustFactor = Math.max(0.15, 1 - (panelDustPct / 100) * 0.85);
+  const effectiveFactor = Math.max(0, Math.min(1, angleFactor * weatherFactor * dustFactor));
+
+  return {
+    angleFactor,
+    anglePct: Math.round(angleFactor * 100),
+    effectivePct: Math.round(effectiveFactor * 100),
+    outputWatts: Math.round(480 * effectiveFactor),
+  };
 }
 
-export function getOrbitalForecast(currentSol: number, daysAhead = 2): SolWeatherInfo[] {
-  const list: SolWeatherInfo[] = [];
+/**
+ * Aviso antecipado de tempestades:
+ * Com Radar Orbital LIGADO, avisa com até 2 Sols de antecedência.
+ * Com Radar Orbital DESLIGADO, avisa apenas no próprio Sol / janela reduzida (1 Sol máx com baixa antecedência).
+ */
+export function getNextSolEarlyWarning(
+  currentSol: number,
+  stormSchedule?: CampaignStormSchedule,
+  radarActive = true
+): (SolWeatherInfo & { solsAhead: number }) | null {
+  if (currentSol >= 30) return null;
+  const maxLookahead = radarActive ? 2 : 1;
+
+  for (let offset = 1; offset <= maxLookahead; offset++) {
+    const candidateSol = currentSol + offset;
+    if (candidateSol > 30) break;
+    const candidate = getSolWeather(candidateSol, stormSchedule);
+    if (candidate.isCritical || (radarActive && offset === 1 && candidate.isModerateAlert)) {
+      return { ...candidate, solsAhead: offset };
+    }
+  }
+  return null;
+}
+
+export function getOrbitalForecast(
+  currentSol: number,
+  daysAhead = 3,
+  stormSchedule?: CampaignStormSchedule
+): SolWeatherInfo[] {
+  const result: SolWeatherInfo[] = [];
   for (let offset = 1; offset <= daysAhead; offset++) {
     const targetSol = currentSol + offset;
     if (targetSol <= 30) {
-      list.push(getSolWeather(targetSol));
+      result.push(getSolWeather(targetSol, stormSchedule));
     }
   }
-  return list;
+  return result;
 }

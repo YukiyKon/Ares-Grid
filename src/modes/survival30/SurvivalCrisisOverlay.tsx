@@ -1,43 +1,60 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, ArrowRight, Radio, ShieldAlert, Timer } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Power,
+  Radio,
+  ShieldAlert,
+  ShieldCheck,
+  Sprout,
+  Timer,
+} from 'lucide-react';
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { getLocalizedCrisis } from './survivalI18n';
+import { getLocalizedCrisis, getLocalizedWeather } from './survivalI18n';
 import { getSolWeather } from './weatherScheduler';
 
 /**
- * Feedback sensorial de perigo e crises repentinas com cronômetro (12-14s)
- * para o Modo Sobrevivência (30 Sols).
+ * Feedback sensorial de perigo + Checklist da Tempestade Extrema em 3 fases (35s Prep -> Impacto -> Pós-Tempestade)
+ * e crises emergenciais rápidas no Modo Sobrevivência (30 Sols).
  */
 export const SurvivalCrisisOverlay: React.FC = () => {
   const {
     state,
+    openModal,
+    setScene,
     tickSurvivalCrisis,
     interactSurvivalCrisis,
-    triggerSurvivalCrisis,
     resolveCrisisViaStation,
+    sealStormHatchesQuick,
+    setSurvivalInBunker,
   } = useGameStore();
   const { dict, tx } = useLanguage();
 
   const lastCrisisIdRef = useRef<string | null>(null);
-  const idleSolAmbushRef = useRef<number | null>(null);
+  const lastStormPhaseRef = useRef<string>('NONE');
   const crisisSecondsRef = useRef<number>(0);
 
   const isSurvival = state.gameMode === 'SURVIVAL_30';
   const { survival } = state;
   const rawCrisis = survival.activeCrisis;
   const crisis = rawCrisis ? getLocalizedCrisis(rawCrisis, dict) : null;
-  const weather = getSolWeather(survival.sol);
+  const weather = getSolWeather(survival.sol, survival.stormSchedule);
+  const rt = dict.survival.realtime;
+  const { stormEvent } = survival;
 
   const isResourceDanger =
     isSurvival &&
     survival.gameStatus === 'PLAYING' &&
-    (survival.energy < 30 ||
-      survival.water < 30 ||
+    (survival.energy < 25 ||
+      survival.water < 25 ||
       survival.health < 30 ||
-      (weather.isCritical && !survival.stormProtectedToday));
+      survival.hunger <= 15 ||
+      survival.thirst <= 15 ||
+      stormEvent.phase === 'IMPACT');
 
   useEffect(() => {
     if (crisis) {
@@ -45,7 +62,17 @@ export const SurvivalCrisisOverlay: React.FC = () => {
     }
   }, [crisis]);
 
-  // Sirene de emergência ao iniciar uma nova crise
+  // Sirene de emergência ao iniciar crise ou fase de preparo da tempestade
+  useEffect(() => {
+    if (!isSurvival) return;
+    if (stormEvent.phase !== lastStormPhaseRef.current) {
+      lastStormPhaseRef.current = stormEvent.phase;
+      if (stormEvent.phase === 'PREP_COUNTDOWN' || stormEvent.phase === 'IMPACT') {
+        soundEngine.playEmergencySiren();
+      }
+    }
+  }, [isSurvival, stormEvent.phase]);
+
   useEffect(() => {
     if (!isSurvival || !crisis) {
       lastCrisisIdRef.current = null;
@@ -57,7 +84,16 @@ export const SurvivalCrisisOverlay: React.FC = () => {
     }
   }, [isSurvival, crisis]);
 
-  // Contador regressivo da crise em tempo real + bipe de radar crescente
+  // Bipe de radar durante contagem regressiva de preparo de tempestade
+  useEffect(() => {
+    if (!isSurvival || survival.gameStatus !== 'PLAYING') return;
+    if (stormEvent.phase !== 'PREP_COUNTDOWN') return;
+    if (stormEvent.prepSecondsLeft <= 10) {
+      soundEngine.playRadarBeep(Math.max(0, Math.ceil(stormEvent.prepSecondsLeft)));
+    }
+  }, [isSurvival, survival.gameStatus, stormEvent.phase, stormEvent.prepSecondsLeft]);
+
+  // Contador regressivo da crise manual
   useEffect(() => {
     if (!isSurvival || survival.gameStatus !== 'PLAYING' || !crisis?.id) return;
 
@@ -70,7 +106,7 @@ export const SurvivalCrisisOverlay: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSurvival, survival.gameStatus, crisis?.id]);
 
-  // Batimento de risco crítico quando energia, água ou saúde ficam abaixo de 30%
+  // Batimento cardíaco em risco crítico
   useEffect(() => {
     if (!isResourceDanger || crisis) return;
     const hb = window.setInterval(() => {
@@ -79,58 +115,168 @@ export const SurvivalCrisisOverlay: React.FC = () => {
     return () => window.clearInterval(hb);
   }, [isResourceDanger, crisis]);
 
-  // Anti-passividade: ficar parado por 22s na Base no mesmo Sol dispara uma emergência
-  useEffect(() => {
-    if (
-      !isSurvival ||
-      survival.gameStatus !== 'PLAYING' ||
-      state.currentScene !== 'BASE_HUB' ||
-      state.activeModal !== 'NONE' ||
-      survival.turnsLeft <= 0 ||
-      crisis !== null
-    ) {
-      return;
-    }
-
-    if (idleSolAmbushRef.current === survival.sol) return;
-
-    const timeout = window.setTimeout(() => {
-      idleSolAmbushRef.current = survival.sol;
-      triggerSurvivalCrisis();
-    }, 22000);
-
-    return () => window.clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isSurvival,
-    survival.gameStatus,
-    survival.sol,
-    survival.turnsLeft,
-    state.currentScene,
-    state.activeModal,
-    crisis,
-  ]);
-
-  if (!isSurvival || survival.gameStatus !== 'PLAYING') {
+  if (
+    !isSurvival ||
+    survival.gameStatus !== 'PLAYING' ||
+    survival.faintState !== 'NONE' ||
+    state.currentScene === 'ARCADE_RUSH'
+  ) {
     return null;
   }
 
   const timePct = crisis
-    ? Math.max(0, Math.round((crisis.secondsLeft / crisis.secondsTotal) * 100))
+    ? Math.max(0, Math.round((crisis.secondsLeft / Math.max(1, crisis.totalSeconds)) * 100))
     : 0;
   const actionPct = crisis
-    ? Math.round((crisis.progress / crisis.requiredProgress) * 100)
+    ? Math.round((crisis.progress / Math.max(1, crisis.requiredSteps)) * 100)
     : 0;
+
+  const localizedStormWeather = getLocalizedWeather(stormEvent.weatherType, dict);
+  const inBunker = stormEvent.checklist.inBunker || survival.playerLocation === 'BUNKER';
+  const showStormBanner =
+    (stormEvent.phase === 'PREP_COUNTDOWN' ||
+      stormEvent.phase === 'IMPACT' ||
+      stormEvent.phase === 'POST_STORM') &&
+    state.activeModal === 'NONE';
 
   return (
     <>
-      {(isResourceDanger || crisis !== null) && (
+      {(isResourceDanger || crisis !== null || stormEvent.phase === 'PREP_COUNTDOWN') && (
         <div
           aria-hidden="true"
           className={`pointer-events-none fixed inset-0 z-40 transition-opacity ${
-            crisis ? 'crisis-vignette-critical' : 'crisis-vignette-danger'
+            crisis || stormEvent.phase === 'IMPACT'
+              ? 'crisis-vignette-critical'
+              : 'crisis-vignette-danger'
           }`}
         />
+      )}
+
+      {/* Checklist Flutuante da Tempestade em 3 Fases (Prep -> Impacto -> Pós-Tempestade) */}
+      {showStormBanner && (
+        <div className="fixed bottom-20 left-2 right-2 z-40 mx-auto max-w-xl sm:bottom-24">
+          <div
+            className={`pixel-box border-2 p-3 shadow-2xl ${
+              stormEvent.phase === 'POST_STORM'
+                ? 'border-amber-400 bg-amber-950/95'
+                : 'border-rose-500 bg-slate-950/95'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 animate-pulse text-rose-300" />
+                <span className="font-pixel text-[9px] text-rose-200 sm:text-[10px]">
+                  {stormEvent.phase === 'POST_STORM'
+                    ? weather.shortBadge
+                    : `${rt.stormChecklistTitle} • ${localizedStormWeather.shortBadge}`}
+                </span>
+              </div>
+
+              {stormEvent.phase === 'PREP_COUNTDOWN' && (
+                <span className="inline-flex items-center gap-1 rounded-sm border border-rose-300 bg-rose-500 px-2 py-0.5 font-pixel text-[9px] text-slate-950 animate-pulse">
+                  <Timer className="h-3 w-3" />
+                  {rt.stormPrepCountdown(Math.ceil(stormEvent.prepSecondsLeft))}
+                </span>
+              )}
+              {stormEvent.phase === 'IMPACT' && (
+                <span className="inline-flex items-center gap-1 rounded-sm border border-amber-300 bg-rose-950 px-2 py-0.5 font-pixel text-[9px] text-rose-200">
+                  <Timer className="h-3 w-3" />
+                  {rt.stormImpactCountdown(Math.ceil(stormEvent.impactSecondsLeft))}
+                </span>
+              )}
+            </div>
+
+            {stormEvent.phase === 'POST_STORM' ? (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="font-dialog text-xs text-amber-100">{rt.stormPostBanner}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEngine.playClick();
+                    setScene('MISSION_1');
+                  }}
+                  className="pixel-btn touch-none select-none min-h-[38px] bg-amber-400 px-3 py-1.5 font-pixel text-[8px] text-slate-950 hover:bg-amber-300"
+                >
+                  🧹 {dict.survival.stations.MISSION_1.quickBtn}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEngine.playSuccess();
+                      sealStormHatchesQuick();
+                    }}
+                    className={`touch-none select-none flex min-h-[38px] items-center gap-1.5 rounded-sm border px-2 py-1 text-left font-dialog text-xs ${
+                      stormEvent.checklist.hatchesSealed
+                        ? 'border-emerald-400 bg-emerald-950/60 text-emerald-200'
+                        : 'border-amber-400/70 bg-slate-900 text-amber-100 hover:bg-slate-800'
+                    }`}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{rt.stormCheckHatches}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEngine.playClick();
+                      setScene('MISSION_4');
+                    }}
+                    className={`touch-none select-none flex min-h-[38px] items-center gap-1.5 rounded-sm border px-2 py-1 text-left font-dialog text-xs ${
+                      stormEvent.checklist.cropsSecured
+                        ? 'border-emerald-400 bg-emerald-950/60 text-emerald-200'
+                        : 'border-lime-400/70 bg-slate-900 text-lime-100 hover:bg-slate-800'
+                    }`}
+                  >
+                    <Sprout className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{rt.stormCheckCrops}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEngine.playClick();
+                      openModal('BREAKERS');
+                    }}
+                    className={`touch-none select-none flex min-h-[38px] items-center gap-1.5 rounded-sm border px-2 py-1 text-left font-dialog text-xs ${
+                      stormEvent.checklist.breakersRationed
+                        ? 'border-emerald-400 bg-emerald-950/60 text-emerald-200'
+                        : 'border-cyan-400/70 bg-slate-900 text-cyan-100 hover:bg-slate-800'
+                    }`}
+                  >
+                    <Power className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{rt.stormCheckBreakers}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEngine.playSuccess();
+                      setSurvivalInBunker(true);
+                    }}
+                    className={`touch-none select-none flex min-h-[38px] items-center gap-1.5 rounded-sm border px-2 py-1 text-left font-dialog text-xs font-bold ${
+                      inBunker
+                        ? 'border-emerald-400 bg-emerald-500 text-slate-950'
+                        : 'animate-pulse border-rose-400 bg-rose-500 text-white hover:bg-rose-400'
+                    }`}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{rt.bunkerEnterBtn}</span>
+                  </button>
+                </div>
+
+                {stormEvent.phase === 'IMPACT' && !inBunker && (
+                  <p className="mt-2 font-dialog text-xs font-bold text-rose-300">
+                    ⚠️ {rt.bunkerDangerBanner}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {crisis && (
@@ -169,7 +315,6 @@ export const SurvivalCrisisOverlay: React.FC = () => {
               {crisis.title}
             </h2>
 
-            {/* Barra de tempo restante */}
             <div className="mt-2.5 h-3 w-full overflow-hidden rounded-sm border border-rose-500/70 bg-slate-900">
               <div
                 style={{ width: `${timePct}%` }}
@@ -179,7 +324,6 @@ export const SurvivalCrisisOverlay: React.FC = () => {
               />
             </div>
 
-            {/* Capi em alerta vermelho */}
             <div className="mt-3 flex items-center gap-3 rounded-sm border-2 border-rose-500/60 bg-rose-950/35 p-2.5">
               <img
                 src={ASSET_MANIFEST.capiPortrait.path}
@@ -205,13 +349,12 @@ export const SurvivalCrisisOverlay: React.FC = () => {
               </span>
             </div>
 
-            {/* Progresso da reação rápida */}
             <div className="mt-3 space-y-2">
               <div className="flex items-center justify-between font-dialog text-[11px] text-slate-300">
                 <span>
                   {tx(
-                    `Emergency containment (${crisis.progress}/${crisis.requiredProgress} actions)`,
-                    `Contenção de emergência (${crisis.progress}/${crisis.requiredProgress} acionamentos)`
+                    `Emergency containment (${crisis.progress}/${crisis.requiredSteps} actions)`,
+                    `Contenção de emergência (${crisis.progress}/${crisis.requiredSteps} acionamentos)`
                   )}
                 </span>
                 <span className="font-pixel text-[9px] text-emerald-300">{actionPct}%</span>
@@ -226,16 +369,16 @@ export const SurvivalCrisisOverlay: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (crisis.progress + 1 >= crisis.requiredProgress) {
+                  if (crisis.progress + 1 >= crisis.requiredSteps) {
                     soundEngine.playSuccess();
                   } else {
                     soundEngine.playClick();
                   }
                   interactSurvivalCrisis();
                 }}
-                className="pixel-btn min-h-[44px] w-full bg-rose-500 px-4 py-3 font-pixel text-[10px] text-white hover:bg-rose-400"
+                className="pixel-btn touch-none select-none min-h-[44px] w-full bg-rose-500 px-4 py-3 font-pixel text-[10px] text-white hover:bg-rose-400"
               >
-                {crisis.actionButtonLabel} ({crisis.progress}/{crisis.requiredProgress})
+                {crisis.actionButtonLabel} ({crisis.progress}/{crisis.requiredSteps})
               </button>
 
               <button
@@ -244,13 +387,13 @@ export const SurvivalCrisisOverlay: React.FC = () => {
                   soundEngine.playClick();
                   resolveCrisisViaStation();
                 }}
-                className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-sm border border-cyan-400/70 bg-cyan-950/60 px-3 py-2 font-dialog text-xs font-bold text-cyan-200 hover:bg-cyan-900/70"
+                className="touch-none select-none flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-sm border border-cyan-400/70 bg-cyan-950/60 px-3 py-2 font-dialog text-xs font-bold text-cyan-200 hover:bg-cyan-900/70"
               >
                 <ArrowRight className="h-3.5 w-3.5" />
                 {tx('Or rush to ', 'Ou correr para a ')}
                 {crisis.stationShortcut === 'MISSION_1'
                   ? tx('Station 1 (Solar Panels)', 'Estação 1 (Painéis Solares)')
-                  : tx('Station 5 (Shelter & Sealing)', 'Estação 5 (Abrigo & Vedação)')}
+                  : tx('Station 5 (Bunker & Sealing)', 'Estação 5 (Bunker & Vedação)')}
               </button>
             </div>
           </div>

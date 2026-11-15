@@ -18,7 +18,8 @@ export const Step4SleepAndCapiNight: React.FC<Step4SleepAndCapiNightProps> = ({
 }) => {
   const { state, openModal } = useGameStore();
   const isSleepingModalOpen = state.activeModal === 'SLEEP_REPORT';
-  const isMorningUnlocked = state.mission2.mission3Unlocked;
+  const isSurvival = state.gameMode === 'SURVIVAL_30';
+  const isMorningUnlocked = !isSurvival && state.mission2.mission3Unlocked;
 
   const handleGoToSleep = () => {
     soundEngine.playSleepChime();

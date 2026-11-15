@@ -41,8 +41,8 @@ export const SurvivalResultOverlay: React.FC = () => {
       color: 'text-amber-300',
     },
     {
-      label: tx('Turns Operated', 'Turnos Executados'),
-      value: `${totalTurnsUsed} ${tx('turns', 'turnos')}`,
+      label: tx('Stations Operated', 'Operações Realizadas'),
+      value: `${totalTurnsUsed}x (${survival.stats.faintCount ?? 0} ${tx('faints', 'desmaios')})`,
       color: 'text-cyan-300',
     },
     {

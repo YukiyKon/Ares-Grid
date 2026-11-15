@@ -6,18 +6,25 @@ import type {
 } from '../missions/mission1-solar/mars24SolarMath';
 import {
   applySurvivalStationCompletion,
+  canFastForwardNight,
   createEmptyDailyLog,
   createInitialSurvival30State,
   createSurvivalCrisis,
   type CrisisType,
   type GameMode,
+  interactGreenhousePlotAction,
+  normalizeSurvival30State,
   resolveNightlySolTransition,
   resolveSurvivalCrisisTimeout,
+  startStormPrepEvent,
   stepSurvivalCrisisProgress,
   type Survival30State,
   type SurvivalActionDetails,
+  type SurvivalBreakers,
   type SurvivalDailyLog,
+  type SurvivalLocation,
   type SurvivalStationId,
+  tickSurvivalClockSecond,
 } from '../modes/survival30/survivalTypes';
 import { getSolWeather } from '../modes/survival30/weatherScheduler';
 
@@ -258,7 +265,13 @@ export interface LogbookEntry {
   transmittedToEarth: boolean;
 }
 
-export type ActiveModalType = 'NONE' | 'LOGBOOK' | 'SLEEP_REPORT' | 'ARCADIA_MAP';
+export type ActiveModalType =
+  | 'NONE'
+  | 'LOGBOOK'
+  | 'SLEEP_REPORT'
+  | 'ARCADIA_MAP'
+  | 'BREAKERS'
+  | 'BUNKER';
 
 export interface GameState {
   currentScene: GameSceneId;
@@ -541,7 +554,7 @@ function loadInitialState(): GameState {
         ...DEFAULT_STATE.healthSimulation,
         ...(parsed.healthSimulation ?? {}),
       },
-      survival: {
+      survival: normalizeSurvival30State({
         ...DEFAULT_SURVIVAL,
         ...(parsed.survival ?? {}),
         dominoAlerts: Array.isArray(parsed.survival?.dominoAlerts)
@@ -559,7 +572,7 @@ function loadInitialState(): GameState {
             ? parsed.survival.dailyLog.stationOperations
             : [],
         },
-      },
+      }),
       gameMode: parsed.gameMode === 'SURVIVAL_30' ? 'SURVIVAL_30' : 'TRAINING',
       logbook: Array.isArray(parsed.logbook) ? parsed.logbook : [],
       activeModal: 'NONE',
@@ -632,6 +645,17 @@ interface GameContextValue {
   tickSurvivalCrisis: () => void;
   interactSurvivalCrisis: () => void;
   resolveCrisisViaStation: () => void;
+  toggleSurvivalClockPause: () => void;
+  toggleSurvivalFastForward2x: () => void;
+  toggleSurvivalBreaker: (key: Exclude<keyof SurvivalBreakers, 'lifeSupport'>) => void;
+  setSurvivalIndoorState: (insideHabitat: boolean) => void;
+  setSurvivalInBunker: (inBunker: boolean) => void;
+  sealStormHatchesQuick: () => void;
+  triggerSurvivalStormEvent: (
+    preferredType?: 'GLOBAL_DUST_STORM' | 'SOLAR_RADIATION_FLARE'
+  ) => void;
+  interactGreenhousePlot: (plotId: number) => void;
+  resolveSurvivalFaint: () => void;
   restartSurvival30: () => void;
   updateAstronaut: (patch: Partial<AstronautProfile>) => void;
   updateStats: (patch: Partial<GameStats>) => void;
@@ -668,6 +692,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Ignora erro caso cota do localStorage esteja cheia
     }
   }, [state]);
+
+  // Motor de Tempo Real Contínuo do Modo 2: Sobrevivência (30 Sols)
+  // Continua rodando durante os mini-games das estações e nos painéis de Disjuntores/Bunker.
+  const shouldRunSurvivalClock =
+    state.gameMode === 'SURVIVAL_30' &&
+    state.currentScene !== 'START_SCREEN' &&
+    state.currentScene !== 'ARCADE_RUSH' &&
+    state.activeModal !== 'SLEEP_REPORT' &&
+    state.activeModal !== 'LOGBOOK' &&
+    state.activeModal !== 'ARCADIA_MAP' &&
+    state.survival.gameStatus === 'PLAYING' &&
+    !state.survival.clockPaused &&
+    state.survival.faintState === 'NONE';
+
+  useEffect(() => {
+    if (!shouldRunSurvivalClock) return;
+    const timer = window.setInterval(() => {
+      setState((prev) => {
+        if (
+          prev.gameMode !== 'SURVIVAL_30' ||
+          prev.survival.gameStatus !== 'PLAYING' ||
+          prev.survival.clockPaused ||
+          prev.survival.faintState !== 'NONE'
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          survival: tickSurvivalClockSecond(prev.survival, 1),
+        };
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [shouldRunSurvivalClock]);
 
   const buildSurvivalPreparedPatch = (
     prev: GameState,
@@ -816,10 +875,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? buildSurvivalPreparedPatch(prev, scene)
           : {};
 
+      const locationMap: Partial<Record<GameSceneId, SurvivalLocation>> = {
+        BASE_HUB: 'BASE_HUB',
+        MISSION_1: 'SOLAR_ARRAY',
+        MISSION_2: 'HABITAT',
+        MISSION_3: 'ICE_LAB',
+        MISSION_4: 'GREENHOUSE',
+        MISSION_5: 'BUNKER',
+      };
+      const nextLoc = locationMap[scene];
+      const nextInside =
+        scene === 'MISSION_2' || scene === 'MISSION_5'
+          ? true
+          : scene === 'BASE_HUB'
+          ? prev.survival.safeInsideHabitat
+          : false;
+
       return {
         ...prev,
         ...stationPatch,
         currentScene: scene,
+        survival: nextLoc
+          ? {
+              ...prev.survival,
+              playerLocation: nextLoc,
+              safeInsideHabitat: nextInside,
+              fastForward2x: nextInside ? prev.survival.fastForward2x : false,
+            }
+          : prev.survival,
         survival30Unlocked:
           prev.survival30Unlocked ||
           scene === 'FUTURE_MARS' ||
@@ -903,36 +986,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     details?: SurvivalActionDetails
   ) => {
     setState((prev) => {
-      let nextSurvival = applySurvivalStationCompletion(prev.survival, station, details);
-      const shouldOpenSleep =
-        nextSurvival.turnsLeft === 0 && nextSurvival.gameStatus === 'PLAYING';
-
-      if (
-        !shouldOpenSleep &&
-        nextSurvival.gameStatus === 'PLAYING' &&
-        nextSurvival.turnsLeft > 0 &&
-        !nextSurvival.activeCrisis
-      ) {
-        const weather = getSolWeather(nextSurvival.sol);
-        const crisisChance = weather.isCritical || weather.isModerateAlert ? 0.72 : 0.45;
-        if (Math.random() < crisisChance) {
-          const spawnedCrisis = createSurvivalCrisis(nextSurvival.sol);
-          nextSurvival = {
-            ...nextSurvival,
-            activeCrisis: spawnedCrisis,
-            lastNoticeDescriptor: {
-              kind: 'CRISIS_STARTED',
-              crisisType: spawnedCrisis.type,
-            },
-          };
-        }
-      }
-
+      const nextSurvival = applySurvivalStationCompletion(prev.survival, station, details);
       return {
         ...prev,
-        survival: nextSurvival,
+        survival: {
+          ...nextSurvival,
+          playerLocation: station === 'MISSION_5' ? 'BUNKER' : 'BASE_HUB',
+        },
         currentScene: 'BASE_HUB',
-        activeModal: shouldOpenSleep ? 'SLEEP_REPORT' : 'NONE',
+        activeModal: station === 'MISSION_5' ? 'BUNKER' : 'NONE',
       };
     });
   };
@@ -1012,6 +1074,151 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         ...prepared,
         currentScene: targetScene,
+        activeModal: 'NONE',
+      };
+    });
+  };
+
+  const toggleSurvivalClockPause = () => {
+    setState((prev) => ({
+      ...prev,
+      survival: {
+        ...prev.survival,
+        clockPaused: !prev.survival.clockPaused,
+      },
+    }));
+  };
+
+  const toggleSurvivalFastForward2x = () => {
+    setState((prev) => {
+      if (!canFastForwardNight(prev.survival)) return prev;
+      return {
+        ...prev,
+        survival: {
+          ...prev.survival,
+          fastForward2x: !prev.survival.fastForward2x,
+        },
+      };
+    });
+  };
+
+  const toggleSurvivalBreaker = (
+    key: Exclude<keyof SurvivalBreakers, 'lifeSupport'>
+  ) => {
+    setState((prev) => {
+      const nextVal = !prev.survival.breakers[key];
+      const nextBreakers: SurvivalBreakers = {
+        ...prev.survival.breakers,
+        [key]: nextVal,
+      };
+      const rationed = !nextBreakers.greenhouseLeds || !nextBreakers.orbitalRadar;
+      return {
+        ...prev,
+        survival: {
+          ...prev.survival,
+          breakers: nextBreakers,
+          stormEvent: {
+            ...prev.survival.stormEvent,
+            checklist: {
+              ...prev.survival.stormEvent.checklist,
+              breakersRationed:
+                prev.survival.stormEvent.checklist.breakersRationed || rationed,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const setSurvivalIndoorState = (insideHabitat: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      survival: {
+        ...prev.survival,
+        safeInsideHabitat: insideHabitat,
+        playerLocation: insideHabitat ? 'HABITAT' : 'BASE_HUB',
+        fastForward2x: insideHabitat ? prev.survival.fastForward2x : false,
+      },
+    }));
+  };
+
+  const setSurvivalInBunker = (inBunker: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      survival: {
+        ...prev.survival,
+        playerLocation: inBunker ? 'BUNKER' : 'BASE_HUB',
+        safeInsideHabitat: inBunker ? true : prev.survival.safeInsideHabitat,
+        stormProtectedToday: inBunker ? true : prev.survival.stormProtectedToday,
+        stormEvent: {
+          ...prev.survival.stormEvent,
+          checklist: {
+            ...prev.survival.stormEvent.checklist,
+            inBunker,
+          },
+        },
+      },
+      activeModal: inBunker ? 'BUNKER' : 'NONE',
+    }));
+  };
+
+  const sealStormHatchesQuick = () => {
+    setState((prev) => ({
+      ...prev,
+      survival: {
+        ...prev.survival,
+        stormProtectedToday: true,
+        stormEvent: {
+          ...prev.survival.stormEvent,
+          checklist: {
+            ...prev.survival.stormEvent.checklist,
+            hatchesSealed: true,
+          },
+        },
+      },
+    }));
+  };
+
+  const triggerSurvivalStormEvent = (
+    preferredType?: 'GLOBAL_DUST_STORM' | 'SOLAR_RADIATION_FLARE'
+  ) => {
+    setState((prev) => {
+      if (prev.gameMode !== 'SURVIVAL_30' || prev.survival.gameStatus !== 'PLAYING') {
+        return prev;
+      }
+      const chosen =
+        preferredType ??
+        (Math.random() < 0.5 ? 'GLOBAL_DUST_STORM' : 'SOLAR_RADIATION_FLARE');
+      return {
+        ...prev,
+        survival: startStormPrepEvent(prev.survival, chosen),
+      };
+    });
+  };
+
+  const interactGreenhousePlot = (plotId: number) => {
+    setState((prev) => {
+      if (prev.gameMode !== 'SURVIVAL_30') return prev;
+      return {
+        ...prev,
+        survival: interactGreenhousePlotAction(prev.survival, plotId),
+      };
+    });
+  };
+
+  const resolveSurvivalFaint = () => {
+    setState((prev) => {
+      if (prev.gameMode !== 'SURVIVAL_30') return prev;
+      const nextSurvival = resolveNightlySolTransition(prev.survival, 'FAINTED');
+      const prepared =
+        nextSurvival.gameStatus === 'PLAYING'
+          ? buildSurvivalPreparedPatch(prev, undefined, nextSurvival.sol)
+          : {};
+      return {
+        ...prev,
+        ...prepared,
+        survival: nextSurvival,
+        currentScene: 'BASE_HUB',
         activeModal: 'NONE',
       };
     });
@@ -1429,6 +1636,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tickSurvivalCrisis,
         interactSurvivalCrisis,
         resolveCrisisViaStation,
+        toggleSurvivalClockPause,
+        toggleSurvivalFastForward2x,
+        toggleSurvivalBreaker,
+        setSurvivalIndoorState,
+        setSurvivalInBunker,
+        sealStormHatchesQuick,
+        triggerSurvivalStormEvent,
+        interactGreenhousePlot,
+        resolveSurvivalFaint,
         restartSurvival30,
         updateAstronaut,
         updateStats,
