@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BatteryCharging,
   BookOpen,
   Droplets,
   HeartPulse,
   Map,
+  Maximize2,
+  Minimize2,
   Moon,
   RotateCcw,
   Volume2,
@@ -15,6 +17,7 @@ import { soundEngine } from '../../core/soundEngine';
 import { AstronautAvatar } from './AstronautAvatar';
 
 const SCENE_SHORT_LABELS: Record<GameSceneId, string> = {
+  START_SCREEN: '0. Início',
   COUNTDOWN: '1. Contagem',
   LAUNCH: '2. Decolagem',
   CAPI_INTRO: '3. Capi',
@@ -30,12 +33,34 @@ const SCENE_SHORT_LABELS: Record<GameSceneId, string> = {
   FUTURE_MARS: '7. Futuro em Marte',
 };
 
+const INTRO_SCENES: GameSceneId[] = [
+  'START_SCREEN',
+  'COUNTDOWN',
+  'LAUNCH',
+  'CAPI_INTRO',
+  'CUSTOMIZE',
+  'LANDING',
+];
+
 export const TopStatusHUD: React.FC = () => {
   const { state, openModal, setScene, resetGame } = useGameStore();
   const [muted, setMuted] = useState(() => soundEngine.isMuted());
+  const [isFullscreen, setIsFullscreen] = useState(() =>
+    typeof document !== 'undefined' ? Boolean(document.fullscreenElement) : false
+  );
 
-  // Na Cena 1 (Contagem Regressiva), a tela deve ser 100% preta sem HUD
-  if (state.currentScene === 'COUNTDOWN') {
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Oculta a barra superior durante toda a abertura (Start + Cenas 1 a 4) para imersão total
+  if (INTRO_SCENES.includes(state.currentScene)) {
     return null;
   }
 
@@ -43,6 +68,21 @@ export const TopStatusHUD: React.FC = () => {
     const next = soundEngine.toggleMute();
     setMuted(next);
     if (!next) soundEngine.playClick();
+  };
+
+  const handleToggleFullscreen = () => {
+    soundEngine.playClick();
+    try {
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          void document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } else if (document.exitFullscreen) {
+        void document.exitFullscreen().catch(() => {});
+      }
+    } catch {
+      // Fallback silencioso caso o navegador bloqueie tela cheia
+    }
   };
 
   return (
@@ -160,6 +200,21 @@ export const TopStatusHUD: React.FC = () => {
             title={muted ? 'Ativar áudio procedural' : 'Silenciar áudio'}
           >
             {muted ? <VolumeX className="h-4 w-4 text-rose-400" /> : <Volume2 className="h-4 w-4 text-cyan-300" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            aria-label={isFullscreen ? 'Sair da tela cheia' : 'Ativar modo tela cheia'}
+            title={isFullscreen ? 'Sair da tela cheia' : 'Expandir para tela cheia'}
+            className="inline-flex items-center gap-1 rounded-sm border-2 border-slate-700 bg-slate-900 px-2 py-1 font-dialog text-[11px] font-bold text-slate-200 hover:border-cyan-400 hover:text-cyan-200"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-3.5 w-3.5 text-amber-300" />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5 text-cyan-300" />
+            )}
+            <span>{isFullscreen ? '⛶ Sair' : '⛶ Tela Cheia'}</span>
           </button>
 
           <select

@@ -1,6 +1,7 @@
-import React from 'react';
-import { BatteryCharging, CheckCircle2, Search, Sparkles } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { BatteryCharging, CheckCircle2, Hand, RotateCcw, Sparkles } from 'lucide-react';
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
+import { DustScrubCanvas } from '../../components/minigames/DustScrubCanvas';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 
@@ -14,28 +15,50 @@ export const Step2SolarMaintenance: React.FC<Step2SolarMaintenanceProps> = ({
   onCapiFeedback,
 }) => {
   const { state, updateMission5, updateStats } = useGameStore();
-  const { inspectedDrop, remoteCleaningTriggered } = state.mission5.postDustSolar;
+  const { remoteCleaningTriggered } = state.mission5.postDustSolar;
 
-  const handleInspect = () => {
+  const [scrubPct, setScrubPct] = useState(0);
+  const [dustKey, setDustKey] = useState(1);
+  const hasInitRef = useRef(false);
+
+  // Garante início empoeirado pós-tempestade para exigir limpeza real no canvas
+  useEffect(() => {
+    if (hasInitRef.current) return;
+    hasInitRef.current = true;
+    if (!state.mission5.mission5Completed) {
+      setScrubPct(0);
+      setDustKey((k) => k + 1);
+      updateMission5({
+        postDustSolar: {
+          inspectedDrop: true,
+          remoteCleaningTriggered: false,
+        },
+      });
+    } else if (remoteCleaningTriggered) {
+      setScrubPct(100);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleRestartDust = () => {
     soundEngine.playClick();
+    setScrubPct(0);
+    setDustKey((k) => k + 1);
     updateMission5({
       postDustSolar: {
-        ...state.mission5.postDustSolar,
         inspectedDrop: true,
+        remoteCleaningTriggered: false,
       },
     });
     onCapiFeedback(
-      'Diagnóstico concluído! A camada de poeira alaranjada caiu a geração de 480 W para 165 W. Agora ative o sistema remoto de limpeza sem sair em exposição!'
+      'Camada pós-tempestade aplicada! Esfregue o painel solar até atingir 90%+ limpo e restaurar 480 W.'
     );
   };
 
-  const handleRemoteClean = () => {
-    if (!inspectedDrop) {
-      soundEngine.playAlert();
-      onCapiFeedback('Antes de limpar, inspecione a telemetria para medir a perda nos painéis!');
-      return;
-    }
+  const handleScrubComplete = () => {
+    if (remoteCleaningTriggered) return;
     soundEngine.playSuccess();
+    setScrubPct(100);
     updateMission5({
       postDustSolar: {
         inspectedDrop: true,
@@ -44,105 +67,123 @@ export const Step2SolarMaintenance: React.FC<Step2SolarMaintenanceProps> = ({
     });
     updateStats({ energy: 100 });
     onCapiFeedback(
-      'Limpeza remota concluída! A poeira foi removida dos painéis e nossa geração voltou para 480 W sem colocar o astronauta em risco!'
+      'Painel restaurado para 480 W (100%)! Você removeu toda a poeira marciana depositada pela tempestade.'
     );
   };
 
+  const liveWatts = remoteCleaningTriggered
+    ? 480
+    : Math.round(165 + (scrubPct / 100) * (480 - 165));
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-32">
       <div className="rounded-sm border-2 border-amber-500/60 bg-slate-900/90 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <BatteryCharging className="h-4 w-4 text-amber-300" />
             <h2 className="font-pixel text-[11px] text-amber-200">
-              DESAFIO 5.2 — INSPEÇÃO E LIMPEZA DOS PAINÉIS SOLARES
+              DESAFIO 5.2 — LIMPEZA PÓS-TEMPESTADE NO PAINEL SOLAR
             </h2>
           </div>
-          <span
-            className={`font-pixel text-[9px] ${
-              remoteCleaningTriggered ? 'text-emerald-300' : 'text-amber-300'
-            }`}
-          >
-            GERAÇÃO ATUAL: {remoteCleaningTriggered ? '480 W (100%)' : '165 W (EMPOEIRADO)'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`font-pixel text-[9px] ${
+                remoteCleaningTriggered ? 'text-emerald-300' : 'text-amber-300'
+              }`}
+            >
+              GERAÇÃO: {liveWatts} W ({remoteCleaningTriggered ? '100%' : `${scrubPct}% limpo`})
+            </span>
+            <button
+              type="button"
+              onClick={handleRestartDust}
+              className="inline-flex items-center gap-1 rounded-sm border border-slate-700 bg-slate-950 px-2 py-1 font-dialog text-[11px] text-slate-300 hover:border-amber-400"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reiniciar
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1fr_1.15fr]">
-        {/* Visual do painel solar empoeirado -> limpo */}
-        <div className="pixel-box relative flex aspect-video flex-col items-center justify-center bg-gradient-to-b from-orange-950 to-stone-950 p-4">
-          <img
-            src={
-              remoteCleaningTriggered
-                ? ASSET_MANIFEST.solarPanelClean.path
-                : ASSET_MANIFEST.solarPanelDusty.path
-            }
-            alt={
-              remoteCleaningTriggered
-                ? ASSET_MANIFEST.solarPanelClean.alt
-                : ASSET_MANIFEST.solarPanelDusty.alt
-            }
-            className="pixel-art h-40 w-auto object-contain transition duration-500 sm:h-48"
+      <div className="grid gap-4 md:grid-cols-[1.05fr_1.15fr]">
+        {/* Canvas interativo de esfregar poeira pós-tempestade */}
+        <div className="pixel-box flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-orange-950 to-stone-950 p-4">
+          <div className="flex w-full items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 font-pixel text-[9px] text-amber-200">
+              <Hand className="h-3.5 w-3.5 text-amber-300" />
+              ESFREGUE COM O MOUSE OU DEDO ({remoteCleaningTriggered ? '100%' : `${scrubPct}%`})
+            </span>
+            {remoteCleaningTriggered && (
+              <span className="flex items-center gap-1 rounded-xs bg-emerald-500/20 px-2 py-0.5 font-pixel text-[8px] text-emerald-300">
+                <Sparkles className="h-3 w-3" />
+                480 W OK
+              </span>
+            )}
+          </div>
+
+          <DustScrubCanvas
+            cleanImageSrc={ASSET_MANIFEST.solarPanelClean.path}
+            cleanImageAlt={ASSET_MANIFEST.solarPanelClean.alt}
+            activeDust={!remoteCleaningTriggered}
+            dustKey={dustKey}
+            onScrubProgress={setScrubPct}
+            onScrubComplete={handleScrubComplete}
           />
+
           <div
-            className={`mt-2 rounded-sm border px-3 py-1 font-pixel text-[8px] ${
+            className={`rounded-sm border px-3 py-1 font-pixel text-[8px] ${
               remoteCleaningTriggered
                 ? 'border-emerald-400 bg-emerald-950/80 text-emerald-200'
                 : 'border-orange-400 bg-orange-950/80 text-orange-200'
             }`}
           >
             {remoteCleaningTriggered
-              ? 'PAINÉIS LIMPOS • BATERIAS EM 100%'
-              : 'CAMADA DENSA DE POEIRA MARCIANA DETECTADA'}
+              ? 'PAINÉIS LIMPOS • 480 W RESTAURADOS!'
+              : 'CAMADA ESPESSA DE POEIRA PÓS-TEMPESTADE'}
           </div>
         </div>
 
-        {/* Botões de inspeção e limpeza remota */}
+        {/* Telemetria em tempo real e avanço */}
         <div className="flex flex-col justify-between gap-3">
-          <div className="space-y-2.5">
-            <button
-              type="button"
-              onClick={handleInspect}
-              className={`flex w-full items-start justify-between gap-2 rounded-sm border-2 p-3 text-left transition ${
-                inspectedDrop
-                  ? 'border-cyan-400 bg-cyan-950/50 text-cyan-100'
-                  : 'border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-400'
-              }`}
-            >
-              <div>
-                <p className="flex items-center gap-1.5 font-dialog text-xs font-bold text-cyan-300">
-                  <Search className="h-4 w-4" />
-                  1. Inspecionar Queda de Energia e Poeira Acumulada
-                </p>
-                <p className="mt-1 font-dialog text-xs text-slate-300">
-                  Mede a perda de watts pelos sensores de bordo antes de liberar saída externa.
-                </p>
-              </div>
-              {inspectedDrop && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />}
-            </button>
+          <div className="space-y-3 rounded-sm border border-slate-800 bg-slate-900 p-3 font-dialog text-xs">
+            <p className="font-pixel text-[9px] text-cyan-300">
+              TELEMETRIA FOTOVOLTAICA EM TEMPO REAL
+            </p>
+            <p className="text-slate-200">
+              A tempestade depositou uma crosta espessa de regolito sobre os painéis, reduzindo a
+              geração para <strong>165 W</strong>.
+            </p>
 
-            <button
-              type="button"
-              onClick={handleRemoteClean}
-              className={`flex w-full items-start justify-between gap-2 rounded-sm border-2 p-3 text-left transition ${
-                remoteCleaningTriggered
-                  ? 'border-emerald-400 bg-emerald-950/50 text-emerald-100'
-                  : 'border-slate-700 bg-slate-900 text-slate-200 hover:border-emerald-400'
-              }`}
-            >
-              <div>
-                <p className="flex items-center gap-1.5 font-dialog text-xs font-bold text-emerald-300">
-                  <Sparkles className="h-4 w-4" />
-                  2. Acionar Limpeza Automatizada de Manutenção
-                </p>
-                <p className="mt-1 font-dialog text-xs text-slate-300">
-                  Escovas eletrostáticas e sopradores removem a poeira sem expor o astronauta.
-                </p>
+            {/* Barra de potência restaurada */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-slate-300">Potência Recuperada:</span>
+                <strong className={remoteCleaningTriggered ? 'text-emerald-300' : 'text-amber-300'}>
+                  {liveWatts} W / 480 W
+                </strong>
               </div>
-              {remoteCleaningTriggered && (
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
-              )}
-            </button>
+              <div className="h-4 w-full overflow-hidden rounded-sm border border-slate-700 bg-slate-950">
+                <div
+                  style={{ width: `${Math.round((liveWatts / 480) * 100)}%` }}
+                  className={`h-full transition-all duration-150 ${
+                    remoteCleaningTriggered ? 'bg-emerald-400' : 'bg-amber-400'
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-sm border border-slate-700 bg-slate-950 p-2.5">
+              <CheckCircle2
+                className={`h-5 w-5 shrink-0 ${
+                  remoteCleaningTriggered ? 'text-emerald-400' : 'text-slate-600'
+                }`}
+              />
+              <span className="text-slate-200">
+                {remoteCleaningTriggered
+                  ? 'Limpeza concluída (> 90%)! Baterias da Base Arcadia recarregadas para 100%.'
+                  : 'Limpe pelo menos 90% da poeira no quadro ao lado para restaurar 480 W.'}
+              </span>
+            </div>
           </div>
 
           <button
@@ -155,8 +196,8 @@ export const Step2SolarMaintenance: React.FC<Step2SolarMaintenanceProps> = ({
             className="pixel-btn w-full bg-emerald-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-45"
           >
             {remoteCleaningTriggered
-              ? 'Energia Restaurada — Próximo Monitoramento (Desafio 5.3) ▶'
-              : 'Inspecione e limpe os painéis solares para continuar'}
+              ? 'Energia Restaurada — Alerta Solar (Desafio 5.3) ▶'
+              : `Esfregue o painel até limpar 90%+ (${scrubPct}%)`}
           </button>
         </div>
       </div>

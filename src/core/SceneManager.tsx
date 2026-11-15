@@ -29,12 +29,14 @@ import { CountdownScene } from '../scenes/intro/CountdownScene';
 import { CustomizeScene } from '../scenes/intro/CustomizeScene';
 import { LandingScene } from '../scenes/intro/LandingScene';
 import { LaunchScene } from '../scenes/intro/LaunchScene';
+import { StartScreenScene } from '../scenes/intro/StartScreenScene';
 import { useGameStore } from './gameStore';
 import { soundEngine } from './soundEngine';
 
 const BaseHubScene: React.FC = () => {
   const { state, setScene, openModal } = useGameStore();
   const [imgError, setImgError] = useState(false);
+  const [hubFeedbackLine, setHubFeedbackLine] = useState<string | null>(null);
   const mission1 = MISSION_REGISTRY[0];
   const mission2 = MISSION_REGISTRY[1];
   const mission3 = MISSION_REGISTRY[2];
@@ -47,7 +49,7 @@ const BaseHubScene: React.FC = () => {
   const { mission4Completed, mission5Unlocked } = state.mission4;
   const { mission5Completed, endingUnlocked } = state.mission5;
 
-  const capiLines = endingUnlocked
+  const defaultCapiLines = endingUnlocked
     ? [
         'Missão 5 concluída com segurança! Todas as 5 missões científicas em Arcadia Planitia foram finalizadas!',
         'Clique em "Central de Comunicação (Cena 6)" para enviar o Relatório Geral da Expedição aos cientistas da Terra!',
@@ -55,17 +57,17 @@ const BaseHubScene: React.FC = () => {
     : mission5Unlocked
     ? [
         'ALERTA AMBIENTAL, comandante! Detectamos uma tempestade de poeira e atividade solar em Arcadia Planitia!',
-        'Clique em "Iniciar Missão 5: Tempestades ▶" ou direto no Abrigo Blindado no terreno da Base!',
+        'Clique em "Iniciar Missão 5: Tempestades ▶" ou abra o Mapa de Arcadia (Setor Sul) para proteger a base!',
       ]
     : mission4Unlocked
     ? [
         'Fantástico, comandante! Temos energia solar, saúde monitorada e reserva de água potável em 100%!',
-        'A Missão 4 (A Primeira Estufa de Marte) já está desbloqueada! Clique no botão verde ou no domo da Estufa no mapa!',
+        'A Missão 4 (A Primeira Estufa de Marte) já está desbloqueada! Clique no botão verde ou abra o Mapa de Arcadia (Setor Leste)!',
       ]
     : mission3Unlocked
     ? [
         'Incrível, comandante! Energia solar ativa e rotina de saúde em dia no Sol atual!',
-        'Clique no Campo de Perfuração (ou em "Iniciar Missão 3: Gelo ▶") para procurar gelo subterrâneo em Arcadia Planitia!',
+        'Clique em "Iniciar Missão 3: Gelo ▶" ou abra o Mapa de Arcadia (Setor Norte) para investigar gelo subterrâneo!',
       ]
     : mission2Unlocked
     ? [
@@ -82,6 +84,23 @@ const BaseHubScene: React.FC = () => {
         'Nosso objetivo será instalar os painéis solares calculando a posição do Sol com o sistema Mars24 da NASA.',
         'Clique em "Iniciar Missão 1: Energia Solar" ou direto na Área Solar marcada no terreno!',
       ];
+
+  const capiLines = hubFeedbackLine ? [hubFeedbackLine] : defaultCapiLines;
+
+  const getLockedMissionHint = (missionId: string) => {
+    switch (missionId) {
+      case 'MISSION_2':
+        return 'O Habitat precisa de energia elétrica primeiro! Conclua a Missão 1 (Energia Solar) e durma na etapa final para liberar a Missão 2.';
+      case 'MISSION_3':
+        return 'Conclua a Missão 2 (Cuidando do Astronauta) e finalize o relatório do sono para liberar a Missão 3 — O Mistério do Gelo!';
+      case 'MISSION_4':
+        return 'Conclua a Missão 3 (Gelo e Água Potável) para abastecer a base e liberar a Missão 4 — A Primeira Estufa de Marte!';
+      case 'MISSION_5':
+        return 'Conclua a Missão 4 (A Primeira Estufa de Marte) para liberar a Missão 5 — Alerta! Tempestades em Marte!';
+      default:
+        return 'Complete as missões anteriores na ordem para desbloquear esta etapa.';
+    }
+  };
 
   const handleOpenMission1 = () => {
     soundEngine.playClick();
@@ -139,12 +158,20 @@ const BaseHubScene: React.FC = () => {
           {/* 1. Habitat Principal (esquerda) — Missão 2: Interior e Saúde */}
           <button
             type="button"
-            disabled={!mission2Unlocked}
-            onClick={handleOpenMission2}
-            className={`absolute left-[10%] top-[34%] rounded-sm border-2 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition ${
+            onClick={() => {
+              if (mission2Unlocked) {
+                setHubFeedbackLine(null);
+                handleOpenMission2();
+              } else {
+                soundEngine.playAlert();
+                setHubFeedbackLine(getLockedMissionHint('MISSION_2'));
+              }
+            }}
+            aria-disabled={!mission2Unlocked}
+            className={`absolute left-[10%] top-[34%] rounded-sm border-2 bg-slate-950/90 px-2.5 py-1 text-center shadow-lg transition hover:scale-105 ${
               mission2Unlocked
-                ? 'cursor-pointer border-cyan-300 hover:scale-105'
-                : 'cursor-not-allowed border-slate-500/80 opacity-85'
+                ? 'cursor-pointer border-cyan-300'
+                : 'cursor-pointer border-slate-500/80 opacity-90'
             }`}
           >
             <span
@@ -539,20 +566,26 @@ const BaseHubScene: React.FC = () => {
                 <li key={mission.id}>
                   <button
                     type="button"
-                    disabled={!isClickable}
+                    aria-disabled={!isClickable}
                     onClick={() => {
+                      if (!isClickable) {
+                        soundEngine.playAlert();
+                        setHubFeedbackLine(getLockedMissionHint(mission.id));
+                        return;
+                      }
+                      setHubFeedbackLine(null);
                       if (mission.id === 'MISSION_1') handleOpenMission1();
                       if (mission.id === 'MISSION_2' && isM2Unlocked) handleOpenMission2();
                       if (mission.id === 'MISSION_3' && isM3Unlocked) handleOpenMission3();
                       if (mission.id === 'MISSION_4' && isM4Unlocked) handleOpenMission4();
                       if (mission.id === 'MISSION_5' && isM5Unlocked) handleOpenMission5();
                     }}
-                    className={`flex w-full items-start justify-between gap-2 rounded-sm border p-2 text-left transition ${
+                    className={`flex w-full cursor-pointer items-start justify-between gap-2 rounded-sm border p-2 text-left transition ${
                       isDone
                         ? 'border-emerald-400/70 bg-emerald-950/30 hover:bg-emerald-950/50'
                         : isM5Unlocked || isM4Unlocked || isM3Unlocked || isM2Unlocked || mission.id === 'MISSION_1'
                         ? 'border-amber-400/70 bg-amber-950/30 hover:bg-amber-950/50'
-                        : 'border-slate-800 bg-slate-900/60 opacity-75'
+                        : 'border-slate-800 bg-slate-900/60 opacity-80 hover:border-slate-600'
                     }`}
                   >
                     <div>
@@ -603,6 +636,8 @@ export const SceneManager: React.FC = () => {
   const { state } = useGameStore();
 
   switch (state.currentScene) {
+    case 'START_SCREEN':
+      return <StartScreenScene />;
     case 'COUNTDOWN':
       return <CountdownScene />;
     case 'LAUNCH':
@@ -630,6 +665,6 @@ export const SceneManager: React.FC = () => {
     case 'FUTURE_MARS':
       return <FutureMarsScene />;
     default:
-      return <CountdownScene />;
+      return <StartScreenScene />;
   }
 };

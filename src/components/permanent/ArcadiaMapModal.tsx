@@ -49,7 +49,7 @@ export const ArcadiaRegionalMapCanvas: React.FC<ArcadiaRegionalMapCanvasProps> =
       description: 'Missão 3 — Análise orbital HiRISE/SHARAD, perfuração e purificação de água.',
       targetScene: 'MISSION_3',
       unlockHint: 'Conclua a Missão 2 (Saúde no Habitat) para liberar o Setor Norte.',
-      positionClass: 'left-[50%] top-[10%] -translate-x-1/2',
+      positionClass: 'left-[50%] top-[6%] -translate-x-1/2',
       pinColorClass: 'border-cyan-300 text-cyan-200',
       icon: <Snowflake className="h-3.5 w-3.5 text-cyan-300" />,
     },
@@ -93,7 +93,7 @@ export const ArcadiaRegionalMapCanvas: React.FC<ArcadiaRegionalMapCanvasProps> =
       description: 'Missão 5 — Protocolos contra tempestades de poeira e radiação solar.',
       targetScene: 'MISSION_5',
       unlockHint: 'Conclua a Missão 4 (Estufa) para liberar o Setor Sul.',
-      positionClass: 'left-[50%] bottom-[13%] -translate-x-1/2',
+      positionClass: 'left-[50%] bottom-[9%] -translate-x-1/2',
       pinColorClass: 'border-orange-300 text-orange-200',
       icon: <ShieldAlert className="h-3.5 w-3.5 text-orange-300" />,
     },
@@ -219,7 +219,7 @@ export const ArcadiaRegionalMapCanvas: React.FC<ArcadiaRegionalMapCanvasProps> =
                 }
               }}
               onMouseEnter={() => setSelectedSectorId(sector.id)}
-              className={`group absolute ${sector.positionClass} flex max-w-[148px] flex-col items-center rounded-sm border-2 px-2 py-1 text-center shadow-xl transition hover:scale-105 sm:max-w-[185px] sm:px-2.5 sm:py-1.5 ${
+              className={`group absolute ${sector.positionClass} flex w-[162px] flex-col items-center rounded-sm border-2 px-2 py-1 text-center shadow-xl transition hover:scale-105 sm:w-[218px] sm:px-2.5 sm:py-1.5 ${
                 status.completed
                   ? 'border-emerald-300 bg-slate-950/95'
                   : status.unlocked
@@ -237,7 +237,7 @@ export const ArcadiaRegionalMapCanvas: React.FC<ArcadiaRegionalMapCanvasProps> =
                 )}
                 <span>{sector.shortLabel}</span>
               </span>
-              <span className="mt-0.5 line-clamp-1 font-dialog text-[10px] font-bold text-slate-100 sm:text-[11px]">
+              <span className="mt-0.5 whitespace-normal font-dialog text-[10px] font-bold leading-tight text-slate-100 sm:text-[11px]">
                 {sector.title}
               </span>
               <span

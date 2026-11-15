@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
@@ -7,6 +7,7 @@ import {
   Sliders,
   Sparkles,
   Sun,
+  Zap,
 } from 'lucide-react';
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
 import { useGameStore } from '../../core/gameStore';
@@ -32,6 +33,11 @@ interface Step2SolarCalcProps {
 export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) => {
   const { state, updateMission1, installSolarSystem } = useGameStore();
   const [showFormula, setShowFormula] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [isHoldingSync, setIsHoldingSync] = useState(false);
+  const progressRef = useRef(0);
+  const lastPulseAtRef = useRef(0);
+  const completedRef = useRef(false);
 
   const { season, solarHour, panelAzimuth, panelTiltDeg } = state.mission1;
   const calc = calculateMars24Solar({
@@ -45,15 +51,71 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
   const azimuthIndex = Math.max(0, AZIMUTH_ORDER.indexOf(panelAzimuth));
   const canConfirmInstall = calc.efficiencyPct >= 88 && panelAzimuth === calc.recommendedAzimuth;
 
+  useEffect(() => {
+    if (!canConfirmInstall) {
+      setIsHoldingSync(false);
+      progressRef.current = 0;
+      setSyncProgress(0);
+    }
+  }, [canConfirmInstall]);
+
+  useEffect(() => {
+    if (!isHoldingSync || !canConfirmInstall || completedRef.current) return;
+
+    const interval = window.setInterval(() => {
+      const next = Math.min(100, progressRef.current + 1.7);
+      progressRef.current = next;
+      setSyncProgress(next);
+
+      const now = performance.now();
+      if (now - lastPulseAtRef.current >= 150) {
+        soundEngine.playChargePulse(next / 100);
+        lastPulseAtRef.current = now;
+      }
+
+      if (next >= 100 && !completedRef.current) {
+        completedRef.current = true;
+        window.clearInterval(interval);
+        setIsHoldingSync(false);
+        soundEngine.playSuccess();
+        installSolarSystem(calc.wattsOutput);
+        onInstalled();
+      }
+    }, 50);
+
+    return () => window.clearInterval(interval);
+  }, [isHoldingSync, canConfirmInstall, calc.wattsOutput, installSolarSystem, onInstalled]);
+
+  useEffect(() => {
+    if (isHoldingSync || syncProgress <= 0 || syncProgress >= 100) return;
+
+    const decayTimer = window.setInterval(() => {
+      const next = Math.max(0, progressRef.current - 2.5);
+      progressRef.current = next;
+      setSyncProgress(next);
+      if (next <= 0) {
+        window.clearInterval(decayTimer);
+      }
+    }, 50);
+
+    return () => window.clearInterval(decayTimer);
+  }, [isHoldingSync, syncProgress]);
+
   // Posição visual do Sol no simulador conforme a elevação e horário
   const sunXPercent =
     solarHour === 'MORNING' ? 20 : solarHour === 'AFTERNOON' ? 80 : 50;
   const sunYPercent = Math.max(12, Math.min(68, 76 - calc.elevationDeg * 0.72));
 
-  const handleConfirmInstall = () => {
-    soundEngine.playSuccess();
-    installSolarSystem(calc.wattsOutput);
-    onInstalled();
+  const handleStartHoldSync = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!canConfirmInstall || completedRef.current) return;
+    e.preventDefault();
+    soundEngine.unlock();
+    setIsHoldingSync(true);
+    lastPulseAtRef.current = 0;
+  };
+
+  const handleStopHoldSync = () => {
+    setIsHoldingSync(false);
   };
 
   return (
@@ -217,16 +279,38 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
                   y1={sunYPercent * 1.8 + 10}
                   x2={160 + offset * 0.7}
                   y2={125}
-                  stroke={calc.efficiencyPct >= 88 ? '#fde047' : '#fb923c'}
-                  strokeWidth={calc.efficiencyPct >= 88 ? '3' : '2'}
-                  strokeDasharray="6 5"
-                  opacity={Math.max(0.25, calc.efficiencyPct / 100)}
+                  stroke={
+                    isHoldingSync || syncProgress > 0
+                      ? '#fef08a'
+                      : calc.efficiencyPct >= 88
+                      ? '#fde047'
+                      : '#fb923c'
+                  }
+                  strokeWidth={
+                    isHoldingSync || syncProgress > 0
+                      ? 4 + (syncProgress / 100) * 3
+                      : calc.efficiencyPct >= 88
+                      ? '3'
+                      : '2'
+                  }
+                  strokeDasharray={isHoldingSync ? undefined : '6 5'}
+                  opacity={
+                    isHoldingSync || syncProgress > 0
+                      ? 0.95
+                      : Math.max(0.25, calc.efficiencyPct / 100)
+                  }
                 />
               ))}
             </svg>
 
             {/* Sprite do painel solar inclinando conforme slider */}
             <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center">
+              {(isHoldingSync || syncProgress > 0) && (
+                <div
+                  style={{ opacity: Math.max(0.25, syncProgress / 100) }}
+                  className="pointer-events-none absolute -inset-2 animate-pulse rounded-full bg-yellow-300/30 blur-md"
+                />
+              )}
               <img
                 src={ASSET_MANIFEST.solarPanelClean.path}
                 alt={ASSET_MANIFEST.solarPanelClean.alt}
@@ -239,7 +323,7 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
                       : 0
                   }deg) scaleY(${Math.max(0.72, 1 - panelTiltDeg * 0.0035)})`,
                 }}
-                className="pixel-art h-24 w-24 object-contain transition-transform duration-200"
+                className="pixel-art relative h-24 w-24 object-contain transition-transform duration-200"
               />
             </div>
 
@@ -341,17 +425,49 @@ export const Step2SolarCalc: React.FC<Step2SolarCalcProps> = ({ onInstalled }) =
             </div>
           </div>
 
-          <button
-            type="button"
-            disabled={!canConfirmInstall}
-            onClick={handleConfirmInstall}
-            className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {canConfirmInstall
-              ? `Confirmar Instalação (${calc.wattsOutput} W) ▶`
-              : `Ajuste para ${AZIMUTH_LABELS[calc.recommendedAzimuth].split(' ')[0]} e ${calc.idealTiltRange[0]}°–${calc.idealTiltRange[1]}°`}
-          </button>
+          {/* Capacitor de Sincronização Solar + Botão Tátil Segurar 3s */}
+          <div className="space-y-2 rounded-sm border border-slate-800 bg-slate-900 p-2.5">
+            <div className="flex items-center justify-between font-dialog text-[11px]">
+              <span className="inline-flex items-center gap-1 font-pixel text-[8px] text-amber-300">
+                <Zap className="h-3.5 w-3.5 text-yellow-300" />
+                CAPACITOR DE FEIXE SOLAR
+              </span>
+              <span className="font-bold text-cyan-200">{Math.round(syncProgress)}%</span>
+            </div>
+            <div className="h-3 w-full overflow-hidden rounded-sm border border-slate-700 bg-slate-950">
+              <div
+                style={{ width: `${syncProgress}%` }}
+                className={`h-full transition-all duration-75 ${
+                  syncProgress >= 90
+                    ? 'bg-emerald-400'
+                    : isHoldingSync
+                    ? 'bg-gradient-to-r from-amber-400 to-yellow-300'
+                    : 'bg-cyan-500'
+                }`}
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={!canConfirmInstall}
+              onPointerDown={handleStartHoldSync}
+              onPointerUp={handleStopHoldSync}
+              onPointerLeave={handleStopHoldSync}
+              onPointerCancel={handleStopHoldSync}
+              className={`touch-none select-none pixel-btn flex w-full items-center justify-center gap-2 px-4 py-3 font-pixel text-[10px] text-slate-950 transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                isHoldingSync
+                  ? 'bg-yellow-300 shadow-[0_0_24px_rgba(253,224,71,0.7)]'
+                  : 'bg-emerald-400 hover:bg-emerald-300'
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>
+                {canConfirmInstall
+                  ? `⚡ Segurar para Sincronizar Feixe (3s) — ${Math.round(syncProgress)}%`
+                  : `Ajuste para ${AZIMUTH_LABELS[calc.recommendedAzimuth].split(' ')[0]} e ${calc.idealTiltRange[0]}°–${calc.idealTiltRange[1]}°`}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import type {
 } from '../missions/mission1-solar/mars24SolarMath';
 
 export type GameSceneId =
+  | 'START_SCREEN'
   | 'COUNTDOWN'
   | 'LAUNCH'
   | 'CAPI_INTRO'
@@ -395,7 +396,7 @@ const DEFAULT_MISSION_5: Mission5State = {
 };
 
 const DEFAULT_STATE: GameState = {
-  currentScene: 'COUNTDOWN',
+  currentScene: 'START_SCREEN',
   astronaut: {
     name: 'Comandante Alex',
     suitColor: 'orange',
@@ -818,7 +819,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         prev.mission1.powerSaveTested;
 
       const canFinishMission2 =
-        prev.currentScene === 'MISSION_2' ||
+        prev.mission2.phase === 'STEP_4_SLEEP' ||
+        prev.mission2.phase === 'COMPLETED' ||
         (prev.mission2.exercisesCompleted.length >= 4 &&
           prev.mission2.nutritionCompleted &&
           prev.mission2.hygieneCompleted);
@@ -826,13 +828,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const canFinishMission3 = prev.mission3.waterApproved;
 
       const canFinishMission4 =
-        prev.currentScene === 'MISSION_4' ||
+        prev.mission4.phase === 'COMPLETED' ||
         (prev.mission4.bioregLinks.foodProduction &&
           prev.mission4.bioregLinks.airRevitalization &&
           prev.mission4.bioregLinks.waterRecycling);
 
       const canFinishMission5 =
-        prev.currentScene === 'MISSION_5' ||
+        prev.mission5.phase === 'COMPLETED' ||
         (prev.mission5.postStormInspection.solarPanels &&
           prev.mission5.postStormInspection.habitatStructure &&
           prev.mission5.postStormInspection.greenhouseDome &&

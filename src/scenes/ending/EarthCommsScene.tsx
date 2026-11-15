@@ -226,7 +226,7 @@ export const EarthCommsScene: React.FC = () => {
                   {state.logbook.slice(0, 6).map((item) => (
                     <div
                       key={item.id}
-                      className="w-24 shrink-0 rounded-sm border border-slate-700 bg-slate-950 p-1"
+                      className="w-36 shrink-0 rounded-sm border border-slate-700 bg-slate-950 p-1"
                     >
                       {item.photoDataUrl ? (
                         <img
@@ -239,7 +239,7 @@ export const EarthCommsScene: React.FC = () => {
                           LOG
                         </div>
                       )}
-                      <p className="mt-1 truncate font-dialog text-[9px] text-slate-300">
+                      <p className="mt-1 whitespace-normal font-dialog text-[9px] leading-tight text-slate-300">
                         {item.event}
                       </p>
                     </div>

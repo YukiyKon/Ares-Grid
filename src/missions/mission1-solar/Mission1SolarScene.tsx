@@ -78,6 +78,11 @@ export const Mission1SolarScene: React.FC = () => {
                     soundEngine.playClick();
                     setDynamicCapiLine(null);
                     updateMission1({ phase: stepId });
+                  } else {
+                    soundEngine.playAlert();
+                    setDynamicCapiLine(
+                      'Conclua os objetivos do desafio atual antes de avançar para esta etapa!'
+                    );
                   }
                 }}
                 className={`rounded-sm border px-2 py-1 ${

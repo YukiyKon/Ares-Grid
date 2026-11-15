@@ -87,6 +87,11 @@ export const Mission2HealthScene: React.FC = () => {
                     if (unlocked) {
                       soundEngine.playClick();
                       handleMovePhase(stepId);
+                    } else {
+                      soundEngine.playAlert();
+                      setDynamicCapiLine(
+                        'Conclua os objetivos do desafio atual antes de avançar para esta etapa!'
+                      );
                     }
                   }}
                   className={`rounded-sm border px-2 py-1 ${

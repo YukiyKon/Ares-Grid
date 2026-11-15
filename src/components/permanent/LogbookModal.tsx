@@ -152,6 +152,10 @@ function buildPixelPhotoDataUrl(
 }
 
 const SCENE_SUGGESTIONS: Record<GameSceneId, { event: string; aspect: string }> = {
+  START_SCREEN: {
+    event: 'Preparação inicial da expedição',
+    aspect: 'Sistemas prontos para iniciar a missão em tela cheia rumo a Arcadia Planitia.',
+  },
   COUNTDOWN: {
     event: 'Contagem regressiva concluída',
     aspect: 'Sistemas da espaçonave acionados antes do lançamento.',
@@ -416,10 +420,16 @@ export const LogbookModal: React.FC = () => {
             <button
               type="submit"
               disabled={!capturedPhoto || !eventText.trim() || !aspectText.trim()}
-              className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+              className="pixel-btn flex w-full items-center justify-center gap-2 bg-emerald-400 px-4 py-2.5 font-pixel text-[10px] text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <CheckCircle2 className="h-4 w-4" />
-              Salvar no Diário da Nave
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>
+                {!capturedPhoto
+                  ? '1º Clique em "Capturar Fotografia do Evento" acima 📸'
+                  : !eventText.trim() || !aspectText.trim()
+                  ? 'Preencha o evento e o aspecto observado acima'
+                  : 'Salvar no Diário da Nave ▶'}
+              </span>
             </button>
 
             {savedFeedback && (

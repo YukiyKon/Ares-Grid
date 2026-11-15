@@ -41,7 +41,7 @@ export const LaunchScene: React.FC = () => {
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4">
+    <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-4 pb-28 sm:pb-24">
       <div
         className={`pixel-box relative overflow-hidden bg-slate-950 ${
           vibrating ? 'animate-engineShake' : ''

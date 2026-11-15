@@ -10,6 +10,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { ASSET_MANIFEST } from '../../assets/assetManifest';
+import { DustScrubCanvas } from '../../components/minigames/DustScrubCanvas';
 import { useGameStore } from '../../core/gameStore';
 import { soundEngine } from '../../core/soundEngine';
 
@@ -25,24 +26,27 @@ export const Step3SystemTest: React.FC<Step3SystemTestProps> = ({
   const { state, updateMission1, openModal } = useGameStore();
   const [timePhase, setTimePhase] = useState<'DAY' | 'DUSK'>('DAY');
   const [hasDust, setHasDust] = useState(false);
+  const [cleanPercent, setCleanPercent] = useState(100);
+  const [dustKey, setDustKey] = useState(0);
   const [economyMode, setEconomyMode] = useState(state.mission1.powerSaveTested);
 
   const baseWatts = Math.max(360, state.mission1.generatedWatts || 480);
   const sunMultiplier = timePhase === 'DAY' ? 1 : 0.48;
-  const dustMultiplier = hasDust ? 0.62 : 1;
+  const dustMultiplier = hasDust ? 0.58 + (cleanPercent / 100) * 0.42 : 1;
   const currentGenerationW = Math.round(baseWatts * sunMultiplier * dustMultiplier);
   const habitatConsumptionW = economyMode ? 180 : 320;
   const netBalanceW = currentGenerationW - habitatConsumptionW;
+  const effectiveClean = hasDust ? cleanPercent / 100 : 1;
   const batteryPercent =
     timePhase === 'DAY'
       ? hasDust
-        ? 82
+        ? Math.round(82 + effectiveClean * 18)
         : 100
       : economyMode
       ? hasDust
-        ? 68
+        ? Math.round(68 + effectiveClean * 16)
         : 84
-      : 42;
+      : Math.round(42 + effectiveClean * 20);
 
   const readyForClosure = state.mission1.dustCleaned && state.mission1.powerSaveTested;
 
@@ -50,17 +54,20 @@ export const Step3SystemTest: React.FC<Step3SystemTestProps> = ({
     soundEngine.playAlert();
     setTimePhase('DUSK');
     setHasDust(true);
+    setCleanPercent(0);
+    setDustKey((prev) => prev + 1);
     onCapiFeedback(
-      'Olhe o painel! O Sol baixou no entardecer e o vento trouxe poeira marciana. A geração caiu!'
+      'Olhe o painel! O Sol baixou no entardecer e o vento trouxe poeira marciana. Esfregue a camada laranja sobre o painel até limpar 90%+!'
     );
   };
 
   const handleCleanPanel = () => {
     soundEngine.playSuccess();
     setHasDust(false);
+    setCleanPercent(100);
     updateMission1({ dustCleaned: true });
     onCapiFeedback(
-      'Muito bem! Sem a poeira acumulada, as células fotovoltaicas voltaram a captar muito mais luz solar.'
+      'Muito bem! Ao esfregar toda a poeira, as células fotovoltaicas voltaram a captar muito mais luz solar!'
     );
   };
 
@@ -92,30 +99,51 @@ export const Step3SystemTest: React.FC<Step3SystemTestProps> = ({
         </div>
       </div>
 
-      {/* Painel de Controle Solar + Visual do Painel */}
-      <div className="grid gap-4 md:grid-cols-[260px_1fr]">
+      {/* Painel de Controle Solar + Canvas Interativo de Limpeza de Poeira */}
+      <div className="grid gap-4 md:grid-cols-[270px_1fr]">
         <div className="flex flex-col items-center justify-center rounded-sm border-2 border-slate-800 bg-orange-950/50 p-4">
-          <img
-            src={
-              hasDust
-                ? ASSET_MANIFEST.solarPanelDusty.path
-                : ASSET_MANIFEST.solarPanelClean.path
-            }
-            alt={
-              hasDust
-                ? ASSET_MANIFEST.solarPanelDusty.alt
-                : ASSET_MANIFEST.solarPanelClean.alt
-            }
-            className="pixel-art h-36 w-36 object-contain"
+          <DustScrubCanvas
+            cleanImageSrc={ASSET_MANIFEST.solarPanelClean.path}
+            cleanImageAlt={ASSET_MANIFEST.solarPanelClean.alt}
+            activeDust={hasDust}
+            dustKey={dustKey}
+            onScrubProgress={setCleanPercent}
+            onScrubComplete={handleCleanPanel}
           />
+
+          <div className="mt-3 w-full space-y-1.5">
+            <div className="flex items-center justify-between font-dialog text-[11px]">
+              <span className="text-slate-300">Limpeza do Painel:</span>
+              <strong
+                className={
+                  hasDust && cleanPercent < 90 ? 'text-amber-300' : 'text-emerald-300'
+                }
+              >
+                {cleanPercent}% {hasDust ? '(meta: 90%+)' : '✓'}
+              </strong>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-sm border border-slate-700 bg-slate-900">
+              <div
+                style={{ width: `${cleanPercent}%` }}
+                className={`h-full transition-all duration-75 ${
+                  cleanPercent >= 90 ? 'bg-emerald-400' : 'bg-amber-400'
+                }`}
+              />
+            </div>
+          </div>
+
           <span
-            className={`mt-2 rounded-sm border px-2 py-0.5 font-pixel text-[8px] ${
+            className={`mt-2.5 rounded-sm border px-2 py-0.5 text-center font-pixel text-[8px] ${
               hasDust
                 ? 'border-amber-400 bg-amber-950/80 text-amber-200'
                 : 'border-emerald-400 bg-emerald-950/80 text-emerald-200'
             }`}
           >
-            {hasDust ? '⚠ POEIRA MARCIANA DETECTADA' : '✨ PAINEL LIMPO'}
+            {hasDust
+              ? '🧹 ESFREGUE O PAINEL PARA LIMPAR'
+              : state.mission1.dustCleaned
+              ? '✨ PAINEL LIMPO COM SUCESSO'
+              : '✨ PAINEL SOLAR LIMPO'}
           </span>
         </div>
 
@@ -176,13 +204,27 @@ export const Step3SystemTest: React.FC<Step3SystemTestProps> = ({
             <button
               type="button"
               disabled={!hasDust && state.mission1.dustCleaned}
-              onClick={handleCleanPanel}
+              onClick={() => {
+                if (hasDust) {
+                  soundEngine.playAlert();
+                  onCapiFeedback(
+                    `Use o mouse ou dedo diretamente sobre a poeira laranja no painel à esquerda! Limpeza atual: ${cleanPercent}% (meta: 90%).`
+                  );
+                } else {
+                  soundEngine.playAlert();
+                  onCapiFeedback(
+                    'Primeiro clique em "Simular Entardecer + Poeira" ao lado para cobrir o painel com poeira marciana e poder limpá-lo!'
+                  );
+                }
+              }}
               className="pixel-btn inline-flex items-center gap-1.5 bg-cyan-400 px-3 py-2 font-dialog text-xs font-bold text-slate-950 hover:bg-cyan-300 disabled:opacity-50"
             >
               <Wind className="h-3.5 w-3.5" />
-              {state.mission1.dustCleaned && !hasDust
-                ? '✓ Limpeza Testada'
-                : '🧹 Limpar Poeira do Painel'}
+              {hasDust
+                ? `🧹 Esfregue o Painel (${cleanPercent}%/90%)`
+                : state.mission1.dustCleaned
+                ? '✓ Poeira Limpa (90%+)'
+                : '🧹 Aguardando Simulação de Poeira'}
             </button>
 
             <button
